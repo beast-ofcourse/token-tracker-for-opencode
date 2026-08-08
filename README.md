@@ -20,6 +20,30 @@ pip install -r requirements-dev.txt   # for tests
 
 Python 3.11+.
 
+### npm package
+
+The tool also ships as an npm package (the Python code is bundled inside):
+
+```bash
+npm install -g opencode-token-tracker
+tracker summary
+tracker serve
+```
+
+Or without installing:
+
+```bash
+npx opencode-token-tracker summary
+```
+
+The `serve` command needs the Python web dependencies once:
+
+```bash
+pip install -r requirements.txt
+```
+
+Set `TRACKER_PYTHON` to use a specific Python interpreter.
+
 ## Configure
 
 ```bash

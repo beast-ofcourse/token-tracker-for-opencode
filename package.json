@@ -1,0 +1,24 @@
+{
+  "name": "opencode-token-tracker",
+  "version": "0.1.0",
+  "description": "Local, read-only dashboard and CLI for OpenCode token usage, spend, and budget",
+  "keywords": ["opencode", "tokens", "usage", "dashboard", "cli", "sqlite"],
+  "license": "MIT",
+  "bin": {
+    "tracker": "bin/tracker.js"
+  },
+  "files": [
+    "bin",
+    "tracker",
+    "web",
+    "config.example.json",
+    "requirements.txt",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "test": "python -m pytest"
+  }
+}
