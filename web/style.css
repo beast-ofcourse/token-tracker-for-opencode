@@ -1,8 +1,9 @@
 /* ============================================================
-   OpenCode Token Tracker — Dashboard v2
+   OpenCode Token Tracker — Dashboard v3 (Full Analytics)
 
-   Modern analytics dashboard with Chart.js.
-   Two themes via CSS custom properties. Fully offline.
+   Comprehensive analytics dashboard with Chart.js, data tables,
+   efficiency metrics, and session details. Two themes via CSS
+   custom properties. Fully offline.
    ============================================================ */
 
 /* ── Vendored fonts ────────────────────────────────────── */
@@ -110,32 +111,24 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border-bottom: 1px solid var(--border);
 }
 .header-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  max-width: 1400px; margin: 0 auto;
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-icon {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--bg);
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--accent); color: var(--bg);
   display: grid; place-items: center;
 }
 .brand-icon svg { width: 15px; height: 15px; }
 .brand-text { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
-
 .header-right { display: flex; align-items: center; gap: 16px; }
 
 .sync { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); font-weight: 500; }
 .sync-dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: var(--text-3);
-  transition: background 0.3s;
+  background: var(--text-3); transition: background 0.3s;
 }
 .sync-dot.live { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
 .sync-dot.off { background: var(--red); box-shadow: 0 0 0 3px var(--red-dim); }
@@ -144,8 +137,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   width: 32px; height: 32px;
   display: grid; place-items: center;
   border-radius: var(--radius-xs);
-  color: var(--text-3);
-  transition: color 0.15s, background 0.15s;
+  color: var(--text-3); transition: color 0.15s, background 0.15s;
 }
 .theme-btn:hover { color: var(--text); background: var(--surface-2); }
 .theme-btn svg { width: 16px; height: 16px; }
@@ -155,74 +147,49 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 [data-theme="light"] .icon-moon { display: block; }
 
 /* ── Main ──────────────────────────────────────────────── */
-.main { padding: 24px 24px 64px; }
-.container { max-width: 1280px; margin: 0 auto; }
+.main { padding: 24px 24px 80px; }
+.container { max-width: 1400px; margin: 0 auto; }
 
 /* ── Error banner ──────────────────────────────────────── */
 .error-banner {
   display: none; align-items: center; gap: 10px;
-  background: var(--red-dim);
-  border: 1px solid var(--red);
-  border-radius: var(--radius-sm);
-  color: var(--red);
-  font-size: 13px; font-weight: 500;
-  padding: 10px 14px;
-  margin-bottom: 20px;
+  background: var(--red-dim); border: 1px solid var(--red);
+  border-radius: var(--radius-sm); color: var(--red);
+  font-size: 13px; font-weight: 500; padding: 10px 14px; margin-bottom: 20px;
 }
 .error-banner.show { display: flex; }
 .error-banner svg { flex-shrink: 0; }
 
 /* ── Stat cards ────────────────────────────────────────── */
 .stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 20px;
 }
 .stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
   transition: border-color 0.15s;
 }
 .stat-card:hover { border-color: var(--border-strong); }
 .stat-label {
-  font-size: 12px; font-weight: 600;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
 }
 .stat-value {
-  font-family: var(--font-mono);
-  font-size: 28px; font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin-bottom: 4px;
+  font-family: var(--font-mono); font-size: 26px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 4px;
 }
-.stat-sub {
-  font-size: 12px; font-weight: 500;
-  color: var(--text-3);
-}
+.stat-sub { font-size: 12px; font-weight: 500; color: var(--text-3); }
 .stat-card--budget .stat-value { color: var(--accent); }
 .stat-card--budget.warn .stat-value { color: var(--amber); }
 .stat-card--budget.exceeded .stat-value { color: var(--red); }
-
 .stat-budget-bar {
-  height: 4px;
-  background: var(--surface-2);
-  border-radius: 2px;
-  margin: 10px 0 6px;
-  overflow: hidden;
+  height: 4px; background: var(--surface-2); border-radius: 2px;
+  margin: 10px 0 6px; overflow: hidden;
 }
 .stat-budget-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: var(--accent);
-  width: 0%;
-  transition: width 0.6s ease, background 0.3s;
+  height: 100%; border-radius: 2px; background: var(--accent);
+  width: 0%; transition: width 0.6s ease, background 0.3s;
 }
 .stat-card--budget.warn .stat-budget-fill { background: var(--amber); }
 .stat-card--budget.exceeded .stat-budget-fill { background: var(--red); }
@@ -234,47 +201,34 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .range-tabs {
   display: inline-flex; gap: 2px; padding: 3px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
 }
 .range-tab {
-  font-size: 12px; font-weight: 600;
-  color: var(--text-3);
-  padding: 6px 14px;
-  border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: var(--text-3);
+  padding: 6px 14px; border-radius: 999px;
   transition: color 0.15s, background 0.15s;
 }
 .range-tab:hover { color: var(--text); }
-.range-tab[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--bg);
-}
+.range-tab[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
 
-/* ── Cards grid ────────────────────────────────────────── */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
+/* ── Cards ─────────────────────────────────────────────── */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  transition: border-color 0.15s;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  transition: border-color 0.15s; margin-bottom: 16px;
 }
 .card:hover { border-color: var(--border-strong); }
 .card--wide { grid-column: 1 / -1; }
-
 .card-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 16px;
 }
 .card-title {
-  font-size: 13px; font-weight: 600;
-  color: var(--text);
-  letter-spacing: -0.005em;
+  font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: -0.005em;
+}
+.card-badge {
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  background: var(--surface-2); padding: 2px 8px; border-radius: 999px;
 }
 
 .legend { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -282,68 +236,145 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 500; color: var(--text-3);
 }
-.legend-dot {
-  width: 8px; height: 8px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+/* ── Grid layouts ──────────────────────────────────────── */
+.grid { display: grid; gap: 16px; }
+.grid--2 { grid-template-columns: 1fr 1fr; }
 
 /* ── Chart wraps ───────────────────────────────────────── */
 .chart-wrap { position: relative; }
 .chart-wrap canvas { width: 100% !important; }
-.card--wide .chart-wrap { height: 280px; }
-.card--wide .chart-wrap canvas { height: 280px !important; }
-
+.chart-wrap--tall { height: 300px; }
+.chart-wrap--tall canvas { height: 300px !important; }
+.chart-wrap--med { height: 260px; }
+.chart-wrap--med canvas { height: 260px !important; }
+.chart-wrap--short { height: 180px; }
+.chart-wrap--short canvas { height: 180px !important; }
 .chart-wrap--donut {
   display: flex; align-items: center; justify-content: center;
-  height: 220px;
+  height: 240px;
 }
-.chart-wrap--donut canvas { max-height: 200px !important; width: auto !important; }
+.chart-wrap--donut canvas { max-height: 220px !important; width: auto !important; }
 
 .empty-state {
   position: absolute; inset: 0;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  color: var(--text-3);
-  text-align: center;
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px; color: var(--text-3); text-align: center;
 }
 .empty-state p { font-size: 13px; font-weight: 500; color: var(--text-2); }
 .empty-state span { font-size: 12px; }
+
+/* ── Efficiency panel ──────────────────────────────────── */
+.efficiency-panel { position: relative; min-height: 200px; }
+.efficiency-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+}
+.efficiency-item { }
+.efficiency-label {
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;
+}
+.efficiency-value {
+  font-family: var(--font-mono); font-size: 20px; font-weight: 700;
+  color: var(--text); margin-bottom: 6px;
+}
+.efficiency-bar {
+  height: 4px; background: var(--surface-2); border-radius: 2px;
+  overflow: hidden; margin-bottom: 4px;
+}
+.efficiency-fill {
+  height: 100%; border-radius: 2px; background: var(--accent);
+  width: 0%; transition: width 0.5s ease;
+}
+.efficiency-note { font-size: 10px; color: var(--text-3); }
+
+/* ── Data tables ───────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th {
+  text-align: left; padding: 10px 12px;
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap; position: sticky; top: 0;
+  background: var(--surface);
+}
+.data-table th.num { text-align: right; }
+.data-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  color: var(--text-2); vertical-align: middle;
+}
+.data-table td.num {
+  text-align: right; font-family: var(--font-mono);
+  font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.data-table td.model-name {
+  font-weight: 500; color: var(--text);
+  max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.data-table td.cost { color: var(--text); font-weight: 600; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--surface-hover); }
+.data-table .pct-bar-cell { width: 80px; }
+.data-table .pct-bar {
+  height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden;
+}
+.data-table .pct-bar-fill {
+  height: 100%; border-radius: 2px; background: var(--accent);
+}
+.data-table .session-title {
+  font-weight: 500; color: var(--text);
+  max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.data-table .session-date { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.data-table .tag {
+  display: inline-block; font-size: 11px; font-weight: 500;
+  padding: 2px 6px; border-radius: 4px; white-space: nowrap;
+}
+.data-table .tag--free { background: var(--accent-dim); color: var(--accent); }
+.data-table .tag--paid { background: var(--amber-dim); color: var(--amber); }
 
 /* ── Toast ─────────────────────────────────────────────── */
 .toast {
   position: fixed; right: 20px; bottom: 20px; z-index: 200;
   display: none; align-items: center; gap: 8px;
   background: var(--surface-2); color: var(--text);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: 10px 14px; font-size: 13px; font-weight: 500;
   box-shadow: var(--shadow-lg);
 }
 .toast.show { display: flex; }
 
 /* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .grid--2 { grid-template-columns: 1fr; }
+}
 @media (max-width: 900px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
-  .grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .main { padding: 16px 16px 48px; }
   .header-inner { padding: 0 16px; }
   .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
   .stat-card { padding: 14px; }
-  .stat-value { font-size: 22px; }
-  .grid { gap: 10px; }
+  .stat-value { font-size: 20px; }
+  .grid--2 { grid-template-columns: 1fr; }
   .card { padding: 16px; }
-  .card--wide .chart-wrap { height: 220px; }
-  .card--wide .chart-wrap canvas { height: 220px !important; }
+  .chart-wrap--tall { height: 240px; }
+  .chart-wrap--tall canvas { height: 240px !important; }
+  .chart-wrap--med { height: 220px; }
+  .chart-wrap--med canvas { height: 220px !important; }
+  .efficiency-grid { grid-template-columns: 1fr; }
   .range-tab { padding: 6px 10px; font-size: 11px; }
   .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
   .range-tabs { width: 100%; justify-content: center; }
+  .data-table { font-size: 12px; }
+  .data-table th, .data-table td { padding: 8px 8px; }
 }
 
 /* ── Reduced motion ────────────────────────────────────── */
@@ -351,5 +382,4 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
 
-/* ── Chart.js overrides ────────────────────────────────── */
 canvas { display: block; }

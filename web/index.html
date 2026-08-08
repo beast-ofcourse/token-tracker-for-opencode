@@ -25,12 +25,8 @@
         <span class="sync-text" id="syncText">Connecting…</span>
       </div>
       <button class="theme-btn" id="themeToggle" type="button" aria-label="Switch to light theme">
-        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-        </svg>
-        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
     </div>
   </div>
@@ -40,12 +36,8 @@
 <main class="main">
   <div class="container">
 
-    <!-- Error banner -->
     <div class="error-banner" id="errorBanner" role="alert">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16">
-        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span id="errorBannerMsg"></span>
     </div>
 
@@ -69,9 +61,7 @@
       <div class="stat-card stat-card--budget">
         <div class="stat-label">Budget</div>
         <div class="stat-value" id="statBudget">—</div>
-        <div class="stat-budget-bar">
-          <div class="stat-budget-fill" id="budgetFill"></div>
-        </div>
+        <div class="stat-budget-bar"><div class="stat-budget-fill" id="budgetFill"></div></div>
         <div class="stat-sub" id="statBudgetSub"></div>
       </div>
     </section>
@@ -86,89 +76,257 @@
       </div>
     </div>
 
-    <!-- ─── Charts Grid ────────────────────────────────── -->
-    <div class="grid">
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 1 — TOKEN USAGE OVER TIME
+         ═══════════════════════════════════════════════════ -->
+    <section class="card card--wide" id="sectionTimeSeries">
+      <div class="card-head">
+        <h2 class="card-title">Token Usage Over Time</h2>
+        <div class="legend" id="legendTimeSeries"></div>
+      </div>
+      <div class="chart-wrap chart-wrap--tall">
+        <canvas id="chartTimeSeries"></canvas>
+        <div class="empty-state" id="emptyTimeSeries"><p>No token data yet</p><span>Usage will appear as sessions are recorded.</span></div>
+      </div>
+    </section>
 
-      <!-- Token usage over time -->
-      <section class="card card--wide">
-        <div class="card-head">
-          <h2 class="card-title">Token Usage</h2>
-          <div class="legend" id="chartLegend" aria-hidden="true"></div>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="chartTokenUsage"></canvas>
-          <div class="empty-state" id="chartEmpty">
-            <p>No token data yet</p>
-            <span>Usage will appear as sessions are recorded.</span>
-          </div>
-        </div>
-      </section>
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 2 — COST OVER TIME
+         ═══════════════════════════════════════════════════ -->
+    <section class="card card--wide" id="sectionCostTime">
+      <div class="card-head">
+        <h2 class="card-title">Cost Over Time</h2>
+      </div>
+      <div class="chart-wrap chart-wrap--short">
+        <canvas id="chartCostTime"></canvas>
+        <div class="empty-state" id="emptyCostTime"><p>No cost data</p><span>Costs will appear for paid models.</span></div>
+      </div>
+    </section>
 
-      <!-- Token composition -->
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 3 — TOKEN COMPOSITION + CACHE EFFICIENCY
+         ═══════════════════════════════════════════════════ -->
+    <div class="grid grid--2">
       <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">Token Composition</h2>
-        </div>
+        <div class="card-head"><h2 class="card-title">Token Composition</h2></div>
         <div class="chart-wrap chart-wrap--donut">
           <canvas id="chartComposition"></canvas>
-          <div class="empty-state" id="compEmpty">
-            <p>No data</p>
-          </div>
+          <div class="empty-state" id="emptyComposition"><p>No data</p></div>
         </div>
       </section>
-
-      <!-- Cost by model -->
       <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">Cost by Model</h2>
+        <div class="card-head"><h2 class="card-title">Cache Efficiency</h2></div>
+        <div class="efficiency-panel" id="efficiencyPanel">
+          <div class="efficiency-grid">
+            <div class="efficiency-item">
+              <div class="efficiency-label">Cache Hit Rate</div>
+              <div class="efficiency-value" id="effCacheHit">—</div>
+              <div class="efficiency-bar"><div class="efficiency-fill" id="effCacheFill"></div></div>
+              <div class="efficiency-note">cache_read / (input + cache_read)</div>
+            </div>
+            <div class="efficiency-item">
+              <div class="efficiency-label">Output Ratio</div>
+              <div class="efficiency-value" id="effOutputRatio">—</div>
+              <div class="efficiency-bar"><div class="efficiency-fill" id="effOutputFill"></div></div>
+              <div class="efficiency-note">output / (input + output)</div>
+            </div>
+            <div class="efficiency-item">
+              <div class="efficiency-label">Reasoning Overhead</div>
+              <div class="efficiency-value" id="effReasoning">—</div>
+              <div class="efficiency-bar"><div class="efficiency-fill" id="effReasoningFill"></div></div>
+              <div class="efficiency-note">reasoning / total_tokens</div>
+            </div>
+            <div class="efficiency-item">
+              <div class="efficiency-label">Cache Write</div>
+              <div class="efficiency-value" id="effCacheWrite">—</div>
+              <div class="efficiency-bar"><div class="efficiency-fill" id="effCacheWriteFill"></div></div>
+              <div class="efficiency-note">cache_write / total_tokens</div>
+            </div>
+          </div>
+          <div class="empty-state" id="emptyEfficiency"><p>No data</p></div>
         </div>
-        <div class="chart-wrap">
+      </section>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 4 — COST BY MODEL + TOKENS BY MODEL
+         ═══════════════════════════════════════════════════ -->
+    <div class="grid grid--2">
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Cost by Model</h2></div>
+        <div class="chart-wrap chart-wrap--med">
           <canvas id="chartCostModel"></canvas>
-          <div class="empty-state" id="costModelEmpty">
-            <p>No cost data</p>
-          </div>
+          <div class="empty-state" id="emptyCostModel"><p>No cost data</p><span>All models may be free.</span></div>
         </div>
       </section>
-
-      <!-- Usage by project -->
       <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">Usage by Project</h2>
+        <div class="card-head"><h2 class="card-title">Tokens by Model</h2></div>
+        <div class="chart-wrap chart-wrap--med">
+          <canvas id="chartTokensModel"></canvas>
+          <div class="empty-state" id="emptyTokensModel"><p>No model data</p></div>
         </div>
-        <div class="chart-wrap">
+      </section>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 5 — USAGE BY PROJECT + USAGE BY AGENT
+         ═══════════════════════════════════════════════════ -->
+    <div class="grid grid--2">
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Usage by Project</h2></div>
+        <div class="chart-wrap chart-wrap--med">
           <canvas id="chartProject"></canvas>
-          <div class="empty-state" id="projectEmpty">
-            <p>No project data</p>
-          </div>
+          <div class="empty-state" id="emptyProject"><p>No project data</p></div>
         </div>
       </section>
-
-      <!-- Usage by model (tokens) -->
       <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">Tokens by Model</h2>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="chartModelTokens"></canvas>
-          <div class="empty-state" id="modelTokensEmpty">
-            <p>No model data</p>
-          </div>
+        <div class="card-head"><h2 class="card-title">Usage by Agent</h2></div>
+        <div class="chart-wrap chart-wrap--med">
+          <canvas id="chartAgent"></canvas>
+          <div class="empty-state" id="emptyAgent"><p>No agent data</p></div>
         </div>
       </section>
+    </div>
 
-    </div><!-- /grid -->
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 6 — SESSION ACTIVITY
+         ═══════════════════════════════════════════════════ -->
+    <section class="card card--wide" id="sectionActivity">
+      <div class="card-head">
+        <h2 class="card-title">Session Activity</h2>
+      </div>
+      <div class="chart-wrap chart-wrap--short">
+        <canvas id="chartActivity"></canvas>
+        <div class="empty-state" id="emptyActivity"><p>No session data</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 7 — DETAILED MODEL BREAKDOWN TABLE
+         ═══════════════════════════════════════════════════ -->
+    <section class="card card--wide">
+      <div class="card-head">
+        <h2 class="card-title">Model Breakdown</h2>
+        <span class="card-badge" id="modelCount"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tableModels">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th class="num">Sessions</th>
+              <th class="num">Input</th>
+              <th class="num">Output</th>
+              <th class="num">Reasoning</th>
+              <th class="num">Cache Read</th>
+              <th class="num">Cache Write</th>
+              <th class="num">Total Tokens</th>
+              <th class="num">Cost</th>
+              <th class="num">% of Total</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyModels"></tbody>
+        </table>
+        <div class="empty-state" id="emptyTableModels"><p>No model data</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 8 — DETAILED PROJECT BREAKDOWN TABLE
+         ═══════════════════════════════════════════════════ -->
+    <section class="card card--wide">
+      <div class="card-head">
+        <h2 class="card-title">Project Breakdown</h2>
+        <span class="card-badge" id="projectCount"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tableProjects">
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th class="num">Sessions</th>
+              <th class="num">Input</th>
+              <th class="num">Output</th>
+              <th class="num">Reasoning</th>
+              <th class="num">Cache Read</th>
+              <th class="num">Cache Write</th>
+              <th class="num">Total Tokens</th>
+              <th class="num">Cost</th>
+              <th class="num">% of Total</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyProjects"></tbody>
+        </table>
+        <div class="empty-state" id="emptyTableProjects"><p>No project data</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 9 — DETAILED AGENT BREAKDOWN TABLE
+         ═══════════════════════════════════════════════════ -->
+    <section class="card card--wide">
+      <div class="card-head">
+        <h2 class="card-title">Agent Breakdown</h2>
+        <span class="card-badge" id="agentCount"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tableAgents">
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th class="num">Sessions</th>
+              <th class="num">Input</th>
+              <th class="num">Output</th>
+              <th class="num">Reasoning</th>
+              <th class="num">Cache Read</th>
+              <th class="num">Cache Write</th>
+              <th class="num">Total Tokens</th>
+              <th class="num">Cost</th>
+              <th class="num">% of Total</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAgents"></tbody>
+        </table>
+        <div class="empty-state" id="emptyTableAgents"><p>No agent data</p></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════
+         SECTION 10 — RECENT SESSIONS
+         ═══════════════════════════════════════════════════ -->
+    <section class="card card--wide">
+      <div class="card-head">
+        <h2 class="card-title">Recent Sessions</h2>
+        <span class="card-badge" id="sessionCount"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="tableSessions">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Model</th>
+              <th>Agent</th>
+              <th class="num">Input</th>
+              <th class="num">Output</th>
+              <th class="num">Total</th>
+              <th class="num">Cost</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="tbodySessions"></tbody>
+        </table>
+        <div class="empty-state" id="emptyTableSessions"><p>No sessions yet</p></div>
+      </div>
+    </section>
 
   </div><!-- /container -->
 </main>
 
-<!-- Toast -->
-<div class="toast" id="toast" role="status" aria-live="polite">
-  <span id="toastMsg"></span>
-</div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span></div>
 
 <script src="vendor/js/chart.umd.min.js"></script>
 <script>
-/* Theme toggle — self-contained, survives app.js rewrites */
+/* Theme toggle */
 (function () {
   var root = document.documentElement;
   var btn = document.getElementById('themeToggle');
@@ -176,17 +334,11 @@
   try { saved = localStorage.getItem('tt-theme'); } catch (e) {}
   if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
   else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) root.setAttribute('data-theme', 'light');
-
-  function syncLabel() {
-    var light = root.getAttribute('data-theme') === 'light';
-    btn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
-  }
+  function syncLabel() { var light = root.getAttribute('data-theme') === 'light'; btn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme'); }
   syncLabel();
-
   btn.addEventListener('click', function () {
     var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-    root.setAttribute('data-theme', next);
-    syncLabel();
+    root.setAttribute('data-theme', next); syncLabel();
     try { localStorage.setItem('tt-theme', next); } catch (e) {}
   });
 })();
