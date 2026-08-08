@@ -205,8 +205,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .range-tab {
   font-size: 12px; font-weight: 600; color: var(--text-3);
-  padding: 6px 14px; border-radius: 999px;
+  padding: 6px 16px; border-radius: 999px;
   transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
 }
 .range-tab:hover { color: var(--text); }
 .range-tab[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
@@ -244,18 +245,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* ── Chart wraps ───────────────────────────────────────── */
 .chart-wrap { position: relative; }
-.chart-wrap canvas { width: 100% !important; }
 .chart-wrap--tall { height: 300px; }
-.chart-wrap--tall canvas { height: 300px !important; }
 .chart-wrap--med { height: 260px; }
-.chart-wrap--med canvas { height: 260px !important; }
 .chart-wrap--short { height: 180px; }
-.chart-wrap--short canvas { height: 180px !important; }
 .chart-wrap--donut {
   display: flex; align-items: center; justify-content: center;
   height: 240px;
 }
-.chart-wrap--donut canvas { max-height: 220px !important; width: auto !important; }
 
 .empty-state {
   position: absolute; inset: 0;
@@ -366,9 +362,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .grid--2 { grid-template-columns: 1fr; }
   .card { padding: 16px; }
   .chart-wrap--tall { height: 240px; }
-  .chart-wrap--tall canvas { height: 240px !important; }
   .chart-wrap--med { height: 220px; }
-  .chart-wrap--med canvas { height: 220px !important; }
   .efficiency-grid { grid-template-columns: 1fr; }
   .range-tab { padding: 6px 10px; font-size: 11px; }
   .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }

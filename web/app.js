@@ -129,8 +129,8 @@
     Chart.defaults.plugins.tooltip.padding=10;
     Chart.defaults.plugins.tooltip.cornerRadius=8;
     Chart.defaults.plugins.tooltip.boxPadding=4;
-    Chart.defaults.scale.grid={color:brd,drawBorder:false};
-    Chart.defaults.scale.ticks={color:t3,font:{size:10}};
+    Object.assign(Chart.defaults.scale.grid,{color:brd,drawBorder:false});
+    Object.assign(Chart.defaults.scale.ticks,{color:t3,font:{size:10}});
   }
 
   function destroyAll() { Object.keys(charts).forEach(function(k){ if(charts[k]){charts[k].destroy();charts[k]=null;} }); }
@@ -304,15 +304,15 @@
       MODEL_COLORS);
   }
   function renderProject(rows) {
-    var enriched=byCost(rows).map(function(r){r._tt=totalTokens(r.tokens);return r;});
-    renderHBar('chartProject','emptyProject',enriched,'cost',
-      {tick:function(v){return formatCost(v);},tip:function(v,r){return(r.label||r.key)+': '+formatCost(v)+' · '+formatTokens(r._tt)+' tokens';}},
+    var enriched=byTokens(rows).map(function(r){r._tt=totalTokens(r.tokens);return r;});
+    renderHBar('chartProject','emptyProject',enriched,'_tt',
+      {tick:function(v){return formatTokens(v);},tip:function(v,r){return(r.label||r.key)+': '+formatTokens(r._tt)+' tokens';}},
       PROJECT_COLORS);
   }
   function renderAgent(rows) {
-    var enriched=byCost(rows).map(function(r){r._tt=totalTokens(r.tokens);return r;});
-    renderHBar('chartAgent','emptyAgent',enriched,'cost',
-      {tick:function(v){return formatCost(v);},tip:function(v,r){return(r.label||r.key)+': '+formatCost(v)+' · '+formatTokens(r._tt)+' tokens';}},
+    var enriched=byTokens(rows).map(function(r){r._tt=totalTokens(r.tokens);return r;});
+    renderHBar('chartAgent','emptyAgent',enriched,'_tt',
+      {tick:function(v){return formatTokens(v);},tip:function(v,r){return(r.label||r.key)+': '+formatTokens(r._tt)+' tokens';}},
       AGENT_COLORS);
   }
 
@@ -468,7 +468,9 @@
         showError(err.status === 503 ? 'Database unavailable' : 'Server unreachable — retrying…');
       })
       .then(function() {
-        if (mySeq === seq) inFlight = false;
+        if (mySeq !== seq) return;
+        inFlight = false;
+        if (themeChangePending) { themeChangePending = false; destroyAll(); refresh(); }
       });
   }
 
@@ -480,9 +482,13 @@
   /* ══════════════════════════════════════════════════════════
      THEME CHANGE → re-render everything
      ══════════════════════════════════════════════════════════ */
+  var themeChangePending = false;
   function onThemeChange() {
-    destroyAll();
     applyDefaults();
+    /* If a refresh is in flight, defer the re-render to avoid
+       destroying charts that the in-flight refresh is about to create. */
+    if (inFlight) { themeChangePending = true; return; }
+    destroyAll();
     refresh();
   }
 
