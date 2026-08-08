@@ -241,6 +241,37 @@ Stop-Process -Id $p.Id
 
 ---
 
+### T-010b: Breakdown week/month buckets (added by user revision 2026-08-08)
+
+**Build:**
+- In `tracker/api.py` extend `GET /api/breakdown` to accept `group_by=week|month` in addition to `project|model|agent|day`:
+  - `week`: buckets by ISO week, key `"YYYY-Www"` (e.g. `2026-W32`), label human-readable (e.g. `Aug 3`), NO zero-fill — only weeks with sessions appear.
+  - `month`: buckets by calendar month, key `"YYYY-MM"`, label `Aug 2026`, NO zero-fill.
+  - Both return the same row shape `{key, label, sessions, tokens, cost}`.
+- Extend `tests/test_api.py`: week and month bucketing returns correct keys/labels/costs for the fixture (fixture spans June + July 2026).
+
+**Acceptance:** `pytest tests/test_api.py` passes; `curl "http://127.0.0.1:8765/api/breakdown?group_by=month"` returns month rows.
+
+**Verify:** `python -m pytest tests/test_api.py -q`
+
+---
+
+### T-011 (REVISED by user 2026-08-08): Minimalist dashboard shell (index.html + style.css)
+
+**Build:**
+- REWRITE `web/index.html` and `web/style.css` as a modern minimalist dashboard. The Sentry Incident Room design is abandoned. No budget panel, no stat cards, no incident stream, no filters, no session detail.
+- Content: header (app name, theme toggle button, sync status dot), a range selector (Daily / Weekly / Monthly / All time), one token-usage chart panel (stacked input/output bars), one per-model chart panel (horizontal bars), empty states, error banner, toast.
+- **Themes:** full dark theme AND full light theme via CSS custom properties on `:root` / `[data-theme="light"]`; a toggle button switches `data-theme` on `<html>`; persist choice in `localStorage`; respect `prefers-color-scheme` as the default when no stored choice. Both themes must look polished: generous whitespace, one accent color, big numbers, subtle borders, no clutter.
+- Typography: Rubik (400/500/600/700) + JetBrains Mono (400/500) — reuse the already-vendored `web/vendor/fonts/` woff2 files; keep `@font-face` with system fallbacks.
+- No chart library — hand-rolled SVG (T-012). Reference `app.js` (stub OK).
+- Keep IDs: `#chart`, `#chartEmpty`, `#modelSplit`, `#modelEmpty`, `#errorBanner`, `#toast`, `#syncDot`, `#syncText`, `#themeToggle`, `#rangeTabs`, `#exportBtn` (export button optional — remove if not needed).
+
+**Acceptance:** page renders both themes with no console errors; toggle switches theme and persists; fonts load from `web/vendor/fonts/` only.
+
+**Verify:** headless browser check (both themes, no console errors, no failed requests); `Test-Path web/vendor/fonts`.
+
+---
+
 ### T-012: Summary cards and charts (app.js part 1)
 
 **Build:**
@@ -248,7 +279,7 @@ Stop-Process -Id $p.Id
   - `fetchSummary()`: GET `/api/summary`, render the stat strip (4 cards: `Tokens (month)`, `Cost (month)`, `Sessions`, `Budget remaining`), the budget panel (progress bar width = `percent`, color green/amber/red, projection line, alert banner), and the KPI row (`largest_session`, `events_over_high`, `avg_cost`).
   - **Token volume chart** (hand-rolled SVG, matching the reference): per-day bars for the current month from `by_day` — input (purple) and output (coral) stacked; `<title>` tooltips with exact counts.
   - **Spend by model** (progress bars): from `by_model` (top 5) — name, share %, cost.
-  - `formatMoney(x)`: `$12.34`; `formatTokens(n)`: `1.2M`, `585K`, `1234`.
+  - `formatMoney(x)`: `$12.34`; `formatTokens(n)`: `1.2M`, `585K`, `1234` (match tracker.pricing.format_tokens behavior: M >= 1_000_000, K >= 10_000, one decimal dropped when .0).
   - Handle the "all free" case: when total cost is 0 but tokens > 0, show a note `All models free — showing token usage.`
   - Unpriced display rule: render `cost` when it is a number > 0; show `—` only when `unpriced` is true and cost is 0.
   - Handle empty data: show empty-state text in charts instead of rendering empty charts.
@@ -260,71 +291,28 @@ Stop-Process -Id $p.Id
 
 ---
 
-### T-013: Session list, filters, and detail (app.js part 2)
+### T-012 (REVISED 2026-08-08): Range selector, charts, theme toggle (app.js)
 
 **Build:**
-- In `web/app.js` add:
-  - `loadSessions()`: GET `/api/sessions?sort=cost` with the current filter state (search text `q`, severity chip, project/model/agent dropdowns, from/to dates, include_empty, page, page size 25); render the **incident stream** (cards ordered by cost desc); footer shows `N sessions · page X of Y`.
-  - Severity: computed per session from cost and the `severity` thresholds in `/api/config` (high >= `high_cost`, med >= `med_cost`, else low); render the severity dot + label on each card and the filter chips `All / High / Med / Low` with counts; chips filter client-side.
-  - Search: send the search text as the `q` param (server-side title filter, added in T-009) — do NOT search client-side over a single page.
-  - Populate the project/model/agent dropdowns from `/api/breakdown` with NO `from`/`to` (all-time unique values), so values from past months are filterable.
-  - Project rail in the sidebar: list projects from `/api/breakdown?group_by=project` (all-time); clicking one sets the project filter and calls `loadSessions()`.
-  - `Export CSV` button: navigate to `/api/export.csv` with the current filters (browser downloads it).
-  - `Show empty sessions` checkbox toggles `include_empty`.
-  - Empty state: `No sessions match your filters.` with a `Clear filters` button.
-  - (Click-to-expand detail is T-013c — do not build it here.)
+- Implement in `web/app.js`:
+  - **Range selector** (Daily / Weekly / Monthly / All time tabs):
+    - Daily: `from = now - 29 days`, `group_by=day`
+    - Weekly: `from = now - 11 weeks`, `group_by=week`
+    - Monthly: `from = now - 11 months`, `group_by=month`
+    - All time: `from = 0`, `group_by=month`
+    - All ranges: `to = now`. Fetch `GET /api/breakdown?group_by=...&from=...&to=...` for the chart AND `GET /api/breakdown?group_by=model&from=...&to=...` for the per-model panel.
+  - **Token usage chart**: hand-rolled SVG stacked bars — input (one color) + output (another) per bucket; `<title>` tooltips with exact counts; axis labels (bucket label under each bar or sparse labels); empty state when no data.
+  - **Per-model panel**: horizontal bars per model — model name, token count (formatTokens), share % of total tokens; sorted desc; empty state.
+  - `formatTokens(n)`: `1.2M`, `585K`, `1234` (M >= 1_000_000, K >= 10_000, drop `.0`).
+  - **Theme toggle**: switch `data-theme` on `<html>`, persist in `localStorage`, default from `prefers-color-scheme`.
+  - **Auto-refresh**: poll every 30s (from `/api/config` `refresh_seconds`); on failure keep last data, show red sync dot + `Offline · last update HH:MM:SS`; recover on next success (green `Live · updated HH:MM:SS`).
+  - Error banner on API failure: `Dashboard server unreachable — retrying…`; 503: `Database temporarily unavailable`.
+  - No chart library — hand-rolled SVG only.
+- The old T-012/T-013/T-013b/T-013c/T-014 content (stat cards, budget panel, incident stream, filters, session detail, breakdown tables, toasts) is CANCELLED — do not build any of it.
 
-**Acceptance:** With the real DB, the incident stream is ordered by cost desc; severity chips filter correctly; filtering by project/model/agent/date updates the list; typing in the search box filters across all pages (server-side); the project rail filters by project; CSV export downloads the filtered rows; the empty state appears for a filter with no matches.
+**Acceptance:** switching tabs changes the chart granularity and refetches; theme toggle switches and persists; per-model panel matches the range; auto-refresh updates data; server stop keeps last data + red dot, recovers on restart.
 
-**Verify:** browser check against the real DB.
-
----
-
-### T-013b: Breakdown tab tables and click-to-filter (app.js part 2b)
-
-**Build:**
-- In `web/app.js` add (Journey 3):
-  - Render the four breakdown tab tables from `/api/breakdown` — columns `key/label, sessions, tokens, cost, share-of-total` (share computed client-side as cost/total; share = 0 when total cost is 0, never NaN).
-  - Tab buttons `By project | By model | By agent | By day` switch which table is shown.
-  - When total cost is 0 (all-free data), sort breakdown rows by tokens desc instead of cost desc.
-  - `loadSessions()` and the session-list filter state are defined in T-013 — reuse them, do not redefine.
-  - Clicking a row sets the corresponding session-list filter (project/model/agent; for a `day` row, set the from/to date inputs to that day) and calls `loadSessions()`. For project/model/agent rows, also update the corresponding dropdown's selected value so the UI matches the filter.
-
-**Acceptance:** With the real DB, each tab shows its table; clicking a `By project` row filters the session list to that project; clicking a `By day` row sets the date range; share-of-total shows `0%` (not NaN) when all costs are 0.
-
-**Verify:** browser check against the real DB.
-
----
-
-### T-013c: Expandable incident detail with per-message breakdown (app.js part 2c)
-
-**Build:**
-- In `web/app.js` add:
-  - Clicking an incident card toggles its in-place detail (like the reference): session metadata (title, project path, model, agent, created/updated), the session token breakdown (input/output/reasoning/cache read/cache write), computed cost, and `message_count`.
-  - On first expand, GET `/api/sessions/{id}/messages` and render the per-message list: each row shows role (USER/MODEL), model, tokens, cost; rows without token data show `no token data`.
-  - On 404 from `/api/sessions/{id}` or `/messages`, show `Session no longer available.` in the detail.
-  - `loadSessions()` and the incident stream are defined in T-013 — reuse them, do not redefine.
-
-**Acceptance:** With the real DB, clicking an incident expands in place with session metadata and a per-message token list; clicking again collapses it; a deleted session shows `Session no longer available.`
-
-**Verify:** browser check against the real DB.
-
----
-
-### T-014: Budget panel, auto-refresh, and error states (app.js part 3)
-
-**Build:**
-- In `web/app.js` add:
-  - Auto-refresh: `setInterval(refresh, config.refresh_seconds * 1000)` where `refresh()` re-fetches summary + sessions AND re-fetches `/api/config`; if `refresh_seconds` changed, clear and re-create the interval so config edits apply without a restart.
-  - Status dot: green `Live · updated HH:MM:SS` on success; red `Offline · last update HH:MM:SS` when a fetch fails; auto-recover on the next successful poll.
-  - Error banner: on API error, show `Dashboard server unreachable — retrying…`; on 503, show `Database temporarily unavailable`.
-  - Budget alert banner: `Budget exceeded — consider switching models or pausing.` when `alert == "exceeded"`; amber note at `warn`.
-  - All fetch failures must not blank the page — keep last good data.
-  - Toast notifications (reference pattern): `Exported N sessions (CSV)` on export, `Budget exceeded` on exceed, `Synced HH:MM:SS` on each successful poll; auto-dismiss after 2s.
-
-**Acceptance:** With the server stopped, the page keeps showing last data, the dot turns red, and it recovers when the server restarts. Budget alert banner appears when the fixture config has a small budget.
-
-**Verify:** browser check (stop/start the server; use a fixture config with budget 1.0)
+**Verify:** browser check against the real DB (all four tabs, both themes, stop/start server).
 
 ---
 
@@ -407,10 +395,12 @@ Stop-Process -Id $p.Id
 
 ## Execution order and parallel dispatch
 
-- T-001 -> T-002 -> T-003 -> T-004 -> T-005 -> T-006 -> T-007 -> T-008 -> T-009 -> T-010 -> T-011 -> T-012 -> T-013 -> T-013b -> T-013c -> T-014 -> T-015 -> T-016 -> T-017 -> T-018 (strict order).
+- T-001 -> T-002 -> T-003 -> T-004 -> T-005 -> T-006 -> T-007 -> T-008 -> T-009 -> T-010 -> T-010b -> T-011 -> T-012 -> T-015 -> T-016 -> T-017 -> T-018 (revised 2026-08-08: T-013/013b/013c/014 cancelled by user; T-010b added; T-011/T-012 revised to minimalist charts-only dashboard with dark/light themes).
 - **Parallel candidates** (no shared files, no ordering dependency):
   - T-002 and T-003 (after T-001).
   - T-005 and T-006 (after T-004 and T-003).
   - T-009 and T-010 both edit `tracker/api.py` — **sequential**, do not parallelize.
-  - T-012, T-013, T-013b, T-013c, T-014 all edit `web/app.js` — **sequential**, do not parallelize.
+  - T-010b edits `tracker/api.py` — sequential after T-010.
+  - T-010b (backend) and T-011 (web shell) are independent — may run in parallel.
+  - T-012 edits `web/app.js` — sequential after T-011.
 - Every task is owned by SWE Pro: dispatch to a fresh subagent, review spec compliance then code quality, run the Verify command before marking done.
