@@ -1,4 +1,4 @@
-# opencode-token-tracker
+﻿# opencode-token-tracker-cli
 
 A local, read-only dashboard and CLI that tracks OpenCode's token usage from OpenCode's own SQLite database. No plugins, no hooks, no cloud.
 
@@ -6,8 +6,8 @@ A local, read-only dashboard and CLI that tracks OpenCode's token usage from Ope
 
 Reads `~/.local/share/opencode/opencode.db` (read-only, WAL-safe) and shows:
 
-- **Web dashboard** (`python -m tracker serve`) — minimalist dark/light dashboard with a range selector (Daily / Weekly / Monthly / All time), a stacked input/output token chart, and a per-model usage panel. Auto-refreshes every 30s.
-- **CLI** — `summary` prints monthly spend/tokens; `sessions --csv` exports sessions.
+- **Web dashboard** (`python -m tracker serve`) â€” minimalist dark/light dashboard with a range selector (Daily / Weekly / Monthly / All time), a stacked input/output token chart, and a per-model usage panel. Auto-refreshes every 30s.
+- **CLI** â€” `summary` prints monthly spend/tokens; `sessions --csv` exports sessions.
 
 Cost is computed from a user-maintained pricing table (the DB's `cost` column is 0 for free models). Free models (`*-free`) price at $0 automatically.
 
@@ -25,7 +25,7 @@ Python 3.11+.
 The tool also ships as an npm package (the Python code is bundled inside):
 
 ```bash
-npm install -g opencode-token-tracker
+npm install -g opencode-token-tracker-cli
 tracker summary
 tracker serve
 ```
@@ -33,7 +33,7 @@ tracker serve
 Or without installing:
 
 ```bash
-npx opencode-token-tracker summary
+npx opencode-token-tracker-cli summary
 ```
 
 The `serve` command needs the Python web dependencies once:
@@ -84,14 +84,14 @@ Monthly budget with configurable reset day (default 1st). 80% = warning, 100% = 
 
 ## Design
 
-Minimalist dashboard, dark + light themes (toggle in the header, persisted), Rubik + JetBrains Mono (vendored woff2, fully offline), hand-rolled SVG charts — no chart library, no build step.
+Minimalist dashboard, dark + light themes (toggle in the header, persisted), Rubik + JetBrains Mono (vendored woff2, fully offline), hand-rolled SVG charts â€” no chart library, no build step.
 
 ## Troubleshooting
 
-- **DB not found** — dashboard shows an error banner; set `OPENCODE_DB` or fix `db_path` in `config.json`.
-- **Port busy** — `Port 8765 is in use - try --port 9000`.
-- **WAL read-only failure** — the tool falls back to a snapshot copy of the DB + WAL files in a temp dir.
-- **Missing dependency** — `Missing dependency: fastapi. Run: pip install -r requirements.txt`.
+- **DB not found** â€” dashboard shows an error banner; set `OPENCODE_DB` or fix `db_path` in `config.json`.
+- **Port busy** â€” `Port 8765 is in use - try --port 9000`.
+- **WAL read-only failure** â€” the tool falls back to a snapshot copy of the DB + WAL files in a temp dir.
+- **Missing dependency** â€” `Missing dependency: fastapi. Run: pip install -r requirements.txt`.
 
 ## Tests
 
