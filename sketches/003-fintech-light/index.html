@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tokentrack — Billing & Usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600&family=Source+Code+Pro:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --purple: #533afd;
+    --purple-hover: #4434d4;
+    --purple-light: #b9b9f9;
+    --purple-mid: #665efd;
+    --navy: #061b31;
+    --label: #273951;
+    --body: #64748d;
+    --white: #ffffff;
+    --brand-dark: #1c1e54;
+    --border: #e5edf5;
+    --border-purple: #d6d9fc;
+    --success: #108c3d;
+    --success-bg: rgba(21,190,83,0.2);
+    --success-border: rgba(21,190,83,0.4);
+    --ruby: #ea2261;
+    --magenta: #f96bee;
+    --lemon: #9b6829;
+    --shadow-blue: rgba(50,50,93,0.25);
+    --shadow-black: rgba(0,0,0,0.1);
+    --shadow-ambient: rgba(23,23,23,0.08);
+  }
+  body {
+    font-family: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "ss01";
+    background: var(--white);
+    color: var(--navy);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ── top nav ─────────────────────────────── */
+  .nav {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(255,255,255,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 1160px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 28px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; color: var(--navy); letter-spacing: -0.01em; }
+  .logo .mark { width: 26px; height: 26px; border-radius: 6px; background: linear-gradient(135deg, var(--purple), var(--magenta)); display: grid; place-items: center; color: #fff; font-size: 14px; font-weight: 500; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; font-weight: 400; }
+  .nav-links a { color: var(--label); text-decoration: none; padding: 4px 0; border-bottom: 2px solid transparent; }
+  .nav-links a:hover { color: var(--navy); }
+  .nav-links a.active { color: var(--navy); border-bottom-color: var(--purple); }
+  .nav-spacer { flex: 1; }
+  .nav-cta {
+    background: var(--purple); color: #fff; border: none; font-family: inherit;
+    font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 4px; cursor: pointer;
+  }
+  .nav-cta:hover { background: var(--purple-hover); }
+  .nav-ghost {
+    background: transparent; color: var(--purple); border: 1px solid var(--purple-light);
+    font-family: inherit; font-size: 14px; font-weight: 500; padding: 7px 14px; border-radius: 4px; cursor: pointer;
+  }
+  .nav-ghost:hover { background: rgba(83,58,253,0.05); }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* ── page head ───────────────────────────── */
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+  .page-head h1 { font-size: 32px; font-weight: 300; letter-spacing: -0.64px; line-height: 1.1; }
+  .page-head p { font-size: 16px; font-weight: 300; color: var(--body); margin-top: 6px; }
+  .period {
+    display: flex; gap: 2px; background: #f6f9fc; border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px;
+  }
+  .period button {
+    border: none; background: transparent; font-family: inherit; font-size: 13px;
+    font-weight: 500; color: var(--body); padding: 6px 12px; border-radius: 4px; cursor: pointer;
+  }
+  .period button:hover { color: var(--navy); }
+  .period button.active { background: var(--white); color: var(--navy); box-shadow: var(--shadow-black) 0px 1px 2px; }
+
+  /* ── banner ──────────────────────────────── */
+  .banner {
+    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(90deg, rgba(83,58,253,0.06), rgba(249,91,238,0.06));
+    border: 1px solid var(--border-purple); border-radius: 8px;
+    padding: 14px 18px; margin-bottom: 24px; font-size: 15px; font-weight: 400;
+  }
+  .banner .ico { width: 30px; height: 30px; border-radius: 50%; background: var(--purple); color: #fff; display: grid; place-items: center; font-size: 14px; flex-shrink: 0; }
+  .banner b { font-weight: 600; }
+  .banner .spacer { flex: 1; }
+  .banner .link { color: var(--purple); font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: none; font-family: inherit; text-decoration: underline; }
+  .banner.warn { background: linear-gradient(90deg, rgba(234,34,97,0.05), rgba(249,91,238,0.05)); border-color: #f4c6dd; }
+  .banner.warn .ico { background: var(--ruby); }
+
+  /* ── balance hero ────────────────────────── */
+  .balance-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .balance-card {
+    background: var(--white); border: 1px solid var(--border); border-radius: 8px;
+    padding: 26px 28px;
+    box-shadow: var(--shadow-blue) 0px 30px 45px -30px, var(--shadow-black) 0px 18px 36px -18px;
+    position: relative; overflow: hidden;
+  }
+  .balance-card::after {
+    content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(83,58,253,0.10), transparent 70%);
+  }
+  .balance-label { font-size: 13px; font-weight: 400; color: var(--label); text-transform: uppercase; letter-spacing: 0.05em; }
+  .balance-amount { font-size: 52px; font-weight: 300; letter-spacing: -1.2px; margin-top: 8px; line-height: 1; }
+  .balance-amount .cur { font-size: 28px; vertical-align: super; margin-right: 2px; color: var(--label); }
+  .balance-sub { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; color: var(--body); }
+  .balance-sub .good { color: var(--success); font-weight: 500; }
+  .badge-success {
+    background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border);
+    font-size: 12px; font-weight: 500; padding: 2px 9px; border-radius: 4px;
+  }
+  .balance-meta { margin-top: 18px; display: flex; gap: 28px; }
+  .bm .k { font-size: 12px; color: var(--body); }
+  .bm .v { font-size: 18px; font-weight: 400; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .bm .v small { font-size: 13px; color: var(--body); }
+
+  .usage-ring-card {
+    background: var(--white); border: 1px solid var(--border); border-radius: 8px;
+    padding: 24px 26px; display: flex; align-items: center; gap: 24px;
+    box-shadow: var(--shadow-blue) 0px 30px 45px -30px, var(--shadow-black) 0px 18px 36px -18px;
+  }
+  .ring-wrap { position: relative; width: 128px; height: 128px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .ring-center .pct { font-size: 26px; font-weight: 300; letter-spacing: -0.5px; }
+  .ring-center .lbl { font-size: 11px; color: var(--body); margin-top: -6px; }
+  .ring-side .t { font-size: 18px; font-weight: 400; }
+  .ring-side .s { font-size: 14px; color: var(--body); margin-top: 4px; }
+  .ring-side .s b { color: var(--navy); font-weight: 500; }
+  .ring-cta { margin-top: 14px; }
+
+  /* ── chart + breakdown ───────────────────── */
+  .split-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .card {
+    background: var(--white); border: 1px solid var(--border); border-radius: 8px;
+    padding: 22px 24px;
+    box-shadow: var(--shadow-ambient) 0px 15px 35px 0px;
+  }
+  .card h2 { font-size: 20px; font-weight: 300; letter-spacing: -0.3px; margin-bottom: 4px; }
+  .card .hsub { font-size: 14px; color: var(--body); margin-bottom: 18px; }
+  .chart-wrap { height: 200px; position: relative; }
+  .grid-lines { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .grid-lines i { border-top: 1px solid #f0f5fa; }
+  svg.chart-svg { position: relative; width: 100%; height: 100%; }
+  .bar { cursor: pointer; transition: opacity 0.15s; }
+  .bar:hover { opacity: 0.75; }
+
+  .model-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f5fa; font-size: 14px; }
+  .model-row:last-child { border-bottom: none; }
+  .model-row .mname { width: 160px; font-weight: 400; color: var(--navy); flex-shrink: 0; }
+  .model-row .track { flex: 1; height: 6px; background: #f0f5fa; border-radius: 999px; overflow: hidden; }
+  .model-row .track i { display: block; height: 100%; border-radius: 999px; background: var(--purple); }
+  .model-row .mcost { width: 76px; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .model-row .mpct { width: 44px; text-align: right; color: var(--body); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  /* ── table ───────────────────────────────── */
+  .card table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .card thead th { text-align: left; font-size: 12px; font-weight: 400; color: var(--body); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .card tbody td { padding: 12px; border-bottom: 1px solid #f0f5fa; vertical-align: middle; }
+  .card tbody tr { cursor: pointer; transition: background 0.12s; }
+  .card tbody tr:hover { background: #fafcfe; }
+  .card tbody tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .sess-id { font-family: 'Source Code Pro', monospace; font-size: 13px; color: var(--body); }
+  .model-chip {
+    font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
+    background: rgba(83,58,253,0.07); color: var(--purple); border: 1px solid var(--border-purple);
+  }
+  .model-chip.green { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+  .model-chip.pink { background: rgba(234,34,97,0.07); color: #c21d4e; border-color: #f4c6dd; }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; }
+  .status-dot.ok { background: #15be53; }
+  .status-dot.warn { background: #ff9f0a; }
+  .status-dot.err { background: #ea2261; }
+  .cost-pos { color: var(--success); }
+  .filter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .filter-row .fcount { font-size: 13px; color: var(--body); }
+  .filter-row .spacer { flex: 1; }
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .seg button { border: none; background: var(--white); font-family: inherit; font-size: 13px; color: var(--body); padding: 6px 14px; cursor: pointer; }
+  .seg button:hover { color: var(--navy); }
+  .seg button.active { background: var(--navy); color: var(--white); }
+  .empty-msg { padding: 26px; text-align: center; color: var(--body); font-size: 14px; }
+
+  /* ── dark band ───────────────────────────── */
+  .dark-band {
+    background: var(--brand-dark); border-radius: 10px; padding: 30px 34px; margin-top: 28px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; color: #fff;
+  }
+  .dark-band .k { font-size: 12px; font-weight: 300; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.08em; }
+  .dark-band .v { font-size: 24px; font-weight: 300; letter-spacing: -0.4px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .dark-band .s { font-size: 13px; font-weight: 300; color: rgba(255,255,255,0.55); margin-top: 3px; }
+
+  footer { margin-top: 40px; font-size: 13px; color: var(--body); display: flex; justify-content: space-between; }
+  footer .mono { font-size: 12px; }
+
+  @media (max-width: 960px) {
+    .balance-grid, .split-2 { grid-template-columns: 1fr; }
+    .dark-band { grid-template-columns: 1fr 1fr; }
+    .nav-links { display: none; }
+    .balance-amount { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- top nav -->
+<div class="nav">
+  <div class="nav-inner">
+    <div class="logo"><span class="mark">◆</span> tokentrack</div>
+    <div class="nav-links">
+      <a class="active" href="#">Overview</a>
+      <a href="#">Usage</a>
+      <a href="#">Sessions</a>
+      <a href="#">Models</a>
+      <a href="#">Alerts</a>
+    </div>
+    <div class="nav-spacer"></div>
+    <button class="nav-ghost" id="ghostBtn">View invoices</button>
+    <button class="nav-cta" id="ctaBtn">Manage budget</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>Usage & billing</h1>
+      <p>Track token consumption across opencode sessions, measured in spend.</p>
+    </div>
+    <div class="period" id="period">
+      <button data-p="7">7 days</button>
+      <button data-p="14">14 days</button>
+      <button data-p="30" class="active">30 days</button>
+    </div>
+  </div>
+
+  <!-- banner -->
+  <div class="banner" id="banner">
+    <div class="ico">◆</div>
+    <div>Your <b>August</b> spend is <b>56%</b> of budget. On the current burn rate you'll finish <b>$11.60 under</b> budget.</div>
+    <div class="spacer"></div>
+    <button class="link" id="bannerLink">View forecast →</button>
+  </div>
+
+  <div class="balance-grid">
+    <!-- balance -->
+    <div class="balance-card">
+      <div class="balance-label">Spend · August 2026</div>
+      <div class="balance-amount"><span class="cur">$</span>84.19</div>
+      <div class="balance-sub">
+        <span class="badge-success">● on track</span>
+        <span>projected <span class="tnum">$138.40</span> of <span class="tnum">$150.00</span> budget</span>
+      </div>
+      <div class="balance-meta">
+        <div class="bm"><div class="k">Burn rate</div><div class="v">$2.91 <small>/ day</small></div></div>
+        <div class="bm"><div class="k">Sessions</div><div class="v">143</div></div>
+        <div class="bm"><div class="k">Avg cost / session</div><div class="v">$0.59</div></div>
+        <div class="bm"><div class="k">Days left</div><div class="v">23</div></div>
+      </div>
+    </div>
+
+    <!-- usage ring -->
+    <div class="usage-ring-card">
+      <div class="ring-wrap">
+        <svg width="128" height="128" viewBox="0 0 128 128">
+          <circle cx="64" cy="64" r="52" fill="none" stroke="#f0f5fa" stroke-width="11"/>
+          <circle id="ringArc" cx="64" cy="64" r="52" fill="none" stroke="#533afd" stroke-width="11"
+            stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition: stroke-dashoffset 0.6s ease;"/>
+        </svg>
+        <div class="ring-center"><div><div class="pct tnum" id="ringPct">0%</div><div class="lbl">of budget</div></div></div>
+      </div>
+      <div class="ring-side">
+        <div class="t">Budget used</div>
+        <div class="s"><b class="tnum">$84.19</b> spent of <b class="tnum">$150.00</b></div>
+        <div class="s">$65.81 remaining</div>
+        <div class="ring-cta"><button class="nav-ghost" id="ringBtn">Raise budget</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="split-2">
+    <!-- chart -->
+    <div class="card">
+      <h2>Daily token spend</h2>
+      <div class="hsub">Cost per day, in USD. Hover bars for details.</div>
+      <div class="chart-wrap">
+        <div class="grid-lines"><i></i><i></i><i></i><i></i></div>
+        <svg class="chart-svg" id="spendChart" viewBox="0 0 640 200" preserveAspectRatio="none"></svg>
+      </div>
+    </div>
+
+    <!-- model breakdown -->
+    <div class="card">
+      <h2>Spend by model</h2>
+      <div class="hsub">August 2026 · $84.19 total</div>
+      <div id="modelSplit"></div>
+    </div>
+  </div>
+
+  <!-- sessions table -->
+  <div class="card">
+    <h2>Recent sessions</h2>
+    <div class="hsub">Highest-spend sessions this period</div>
+    <div class="filter-row">
+      <span class="fcount"><span id="shownCount">10</span> of 143 sessions</span>
+      <div class="spacer"></div>
+      <div class="seg" id="statusSeg">
+        <button class="active" data-f="all">All</button>
+        <button data-f="ok">Completed</button>
+        <button data-f="warn">Near limit</button>
+        <button data-f="err">Errors</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Session</th><th>Description</th><th>Model</th><th>Status</th><th class="num">Tokens</th><th class="num">Cost</th></tr>
+      </thead>
+      <tbody id="sessBody"></tbody>
+    </table>
+  </div>
+
+  <!-- dark band -->
+  <div class="dark-band">
+    <div><div class="k">Tokens · 30 days</div><div class="v">18.4M</div><div class="s">+14% vs previous period</div></div>
+    <div><div class="k">Input / output split</div><div class="v">72 / 28</div><div class="s">avg across sessions</div></div>
+    <div><div class="k">Largest single session</div><div class="v">$9.84</div><div class="s">sess_8f2a · opus-4.6</div></div>
+    <div><div class="k">Forecast · Aug 31</div><div class="v">$138.40</div><div class="s">within $150.00 budget</div></div>
+  </div>
+
+  <footer>
+    <span>tokentrack · token-tracker-for-opencode</span>
+    <span class="mono">updated 2 min ago · opencode-zen</span>
+  </footer>
+</div>
+
+<script>
+/* ── data ─────────────────────────────────────────────── */
+const SPEND = {
+  7:  [ {d:"Aug 2",v:2.62},{d:"Aug 3",v:1.85},{d:"Aug 4",v:3.40},{d:"Aug 5",v:2.71},{d:"Aug 6",v:3.95},{d:"Aug 7",v:3.12},{d:"Aug 8",v:4.71} ],
+  14: [ {d:"Jul 26",v:1.22},{d:"Jul 27",v:1.64},{d:"Jul 28",v:2.15},{d:"Jul 29",v:1.40},{d:"Jul 30",v:1.06},{d:"Jul 31",v:1.95},{d:"Aug 1",v:2.41},{d:"Aug 2",v:2.62},{d:"Aug 3",v:1.85},{d:"Aug 4",v:3.40},{d:"Aug 5",v:2.71},{d:"Aug 6",v:3.95},{d:"Aug 7",v:3.12},{d:"Aug 8",v:4.71} ],
+  30: [ {d:"Jul 10",v:0.95},{d:"Jul 12",v:1.30},{d:"Jul 14",v:1.10},{d:"Jul 16",v:1.85},{d:"Jul 18",v:1.45},{d:"Jul 20",v:2.20},{d:"Jul 22",v:1.70},{d:"Jul 24",v:2.55},{d:"Jul 26",v:1.22},{d:"Jul 28",v:2.15},{d:"Jul 30",v:1.06},{d:"Jul 31",v:1.95},{d:"Aug 1",v:2.41},{d:"Aug 2",v:2.62},{d:"Aug 3",v:1.85},{d:"Aug 4",v:3.40},{d:"Aug 5",v:2.71},{d:"Aug 6",v:3.95},{d:"Aug 7",v:3.12},{d:"Aug 8",v:4.71} ],
+};
+
+const MODELS = [
+  { name: "claude-opus-4.6", pct: 34, cost: "$28.63", cls: "" },
+  { name: "claude-sonnet-4.5", pct: 22, cost: "$18.52", cls: "green" },
+  { name: "gpt-4o", pct: 18, cost: "$15.15", cls: "pink" },
+  { name: "deepseek-v4-flash", pct: 16, cost: "$13.47", cls: "" },
+  { name: "gemini-2.5-pro", pct: 10, cost: "$8.42", cls: "green" },
+];
+
+const SESSIONS = [
+  { id: "sess_8f2a", desc: "Refactor auth middleware to JWT", model: "opus-4.6", modelCls: "", status: "ok", toks: "1.06M", cost: "$9.84" },
+  { id: "sess_2e6f", desc: "Draft RFC: unified telemetry pipeline", model: "gemini-2.5", modelCls: "green", status: "warn", toks: "887K", cost: "$6.42" },
+  { id: "sess_5f7a", desc: "Migrate billing service to v2 API", model: "opus-4.6", modelCls: "", status: "ok", toks: "559K", cost: "$5.11" },
+  { id: "sess_9b1c", desc: "Debug flaky e2e checkout flow", model: "sonnet-4.5", modelCls: "green", status: "warn", toks: "657K", cost: "$3.71" },
+  { id: "sess_3h9c", desc: "API client codegen types", model: "sonnet-4.5", modelCls: "green", status: "err", toks: "466K", cost: "$2.60" },
+  { id: "sess_4d5e", desc: "Summarize thread → RFC outline", model: "deepseek-v4", modelCls: "pink", status: "ok", toks: "1.55M", cost: "$2.08" },
+  { id: "sess_0i1d", desc: "CI matrix rework", model: "deepseek-v4", modelCls: "pink", status: "warn", toks: "1.13M", cost: "$1.49" },
+  { id: "sess_6g8b", desc: "Docs: deployment guide", model: "gpt-4o", modelCls: "pink", status: "ok", toks: "259K", cost: "$1.23" },
+  { id: "sess_1j2e", desc: "Refactor queue worker retries", model: "opus-4.6", modelCls: "", status: "err", toks: "350K", cost: "$3.28" },
+  { id: "sess_7k3f", desc: "Upgrade ORM to v6", model: "gpt-4o", modelCls: "pink", status: "ok", toks: "310K", cost: "$1.51" },
+];
+
+const STATUS = {
+  ok: '<span class="status-dot ok"></span>Completed',
+  warn: '<span class="status-dot warn"></span>Near limit',
+  err: '<span class="status-dot err"></span>Error',
+};
+
+/* ── chart ───────────────────────────────────────────── */
+function renderSpend(range) {
+  const rows = SPEND[range];
+  const max = Math.max(...rows.map(r => r.v));
+  const W = 640, H = 200, PAD = 10, GAP = range === 30 ? 14 : 22;
+  const bw = Math.min(30, (W - PAD * 2 - GAP * (rows.length - 1)) / rows.length);
+  let bars = '';
+  rows.forEach((r, i) => {
+    const h = (r.v / max) * (H - 12);
+    const x = PAD + i * (bw + GAP);
+    const y = H - 10 - h;
+    bars += `<rect class="bar" x="${x}" y="${y}" width="${bw}" height="${h}" rx="2.5" fill="#533afd" opacity="0.9">
+      <title>${r.d}: $${r.v.toFixed(2)}</title></rect>`;
+  });
+  document.getElementById('spendChart').innerHTML = bars;
+  document.querySelectorAll('#period button').forEach(b => b.classList.toggle('active', +b.dataset.p === range));
+}
+
+/* ── model split ─────────────────────────────────────── */
+function renderModels() {
+  document.getElementById('modelSplit').innerHTML = MODELS.map(m => `
+    <div class="model-row">
+      <span class="mname">${m.name}</span>
+      <span class="track"><i style="width:${m.pct}%;"></i></span>
+      <span class="mpct tnum">${m.pct}%</span>
+      <span class="mcost tnum">${m.cost}</span>
+    </div>`).join('');
+}
+
+/* ── sessions ────────────────────────────────────────── */
+function renderSessions(filter) {
+  const list = SESSIONS.filter(s => filter === 'all' || s.status === filter);
+  document.getElementById('shownCount').textContent = list.length;
+  const body = document.getElementById('sessBody');
+  if (!list.length) {
+    body.innerHTML = `<tr><td colspan="6"><div class="empty-msg">No sessions match this filter.</div></td></tr>`;
+    return;
+  }
+  body.innerHTML = list.map(s => `
+    <tr>
+      <td class="sess-id">${s.id}</td>
+      <td>${s.desc}</td>
+      <td><span class="model-chip ${s.modelCls}">${s.model}</span></td>
+      <td>${STATUS[s.status]}</td>
+      <td class="num">${s.toks}</td>
+      <td class="num" style="font-weight:500;">${s.cost}</td>
+    </tr>`).join('');
+}
+
+/* ── ring animation ──────────────────────────────────── */
+function animateRing() {
+  const pct = 56.13;
+  const C = 2 * Math.PI * 52; // 326.7
+  const arc = document.getElementById('ringArc');
+  const offset = C * (1 - pct / 100);
+  arc.style.strokeDasharray = C;
+  arc.style.strokeDashoffset = C;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    arc.style.strokeDashoffset = offset;
+    document.getElementById('ringPct').textContent = Math.round(pct) + '%';
+  }));
+}
+
+/* ── interactions ─────────────────────────────────────── */
+document.getElementById('period').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (btn) renderSpend(+btn.dataset.p);
+});
+
+document.getElementById('statusSeg').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  document.querySelectorAll('#statusSeg button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSessions(btn.dataset.f);
+});
+
+function toast(msg) {
+  const t = document.getElementById('banner');
+  t.innerHTML = `<div class="ico">◆</div><div>${msg}</div><div class="spacer"></div><button class="link">Dismiss</button>`;
+  t.querySelector('.link').addEventListener('click', () => { t.style.display = 'none'; });
+}
+
+document.getElementById('ctaBtn').addEventListener('click', () => toast('Budget editor opened — change your monthly cap here (mock).'));
+document.getElementById('ghostBtn').addEventListener('click', () => toast('Invoices view — PDF receipts for each billing cycle (mock).'));
+document.getElementById('ringBtn').addEventListener('click', () => toast('Raise budget — set a new monthly limit with one click (mock).'));
+document.getElementById('bannerLink').addEventListener('click', () => toast('Forecast: $138.40 projected · $11.60 headroom · burn $2.91/day'));
+
+/* ── init ─────────────────────────────────────────────── */
+renderSpend(30);
+renderModels();
+renderSessions('all');
+animateRing();
+</script>
+</body>
+</html>

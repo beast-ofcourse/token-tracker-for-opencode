@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TokenTrack — Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #08090a;
+    --panel: #0f1011;
+    --surface: #191a1b;
+    --surface-2: #28282c;
+    --text: #f7f8f8;
+    --text-2: #d0d6e0;
+    --text-3: #8a8f98;
+    --text-4: #62666d;
+    --indigo: #5e6ad2;
+    --violet: #7170ff;
+    --violet-hover: #828fff;
+    --green: #10b981;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --border: rgba(255,255,255,0.08);
+    --border-subtle: rgba(255,255,255,0.05);
+  }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "cv01", "ss03";
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ── layout ─────────────────────────────── */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 224px; flex-shrink: 0; background: var(--panel);
+    border-right: 1px solid var(--border-subtle);
+    padding: 20px 12px; display: flex; flex-direction: column; gap: 4px;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; }
+  .brand .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--indigo); display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #fff; }
+  .brand .name { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 9px;
+    border-radius: 6px; font-size: 13px; font-weight: 400; color: var(--text-3);
+    cursor: pointer; border: none; background: none; font-family: inherit; text-align: left; width: 100%;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .nav-item.active { color: var(--text); background: rgba(255,255,255,0.05); }
+  .nav-item.active .nicon { color: var(--violet); }
+  .nicon { width: 16px; text-align: center; font-size: 13px; color: var(--text-4); }
+  .nav-item .spacer { flex: 1; }
+  .nav-badge { font-size: 10px; background: var(--violet); color: #fff; border-radius: 999px; padding: 1px 6px; font-weight: 500; }
+  .side-foot { margin-top: auto; padding: 10px 9px 0; border-top: 1px solid var(--border-subtle); }
+  .side-foot .who { font-size: 12px; color: var(--text-4); }
+  .side-foot .pw { font-size: 12px; color: var(--text-3); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
+
+  .main { flex: 1; min-width: 0; padding: 28px 32px 60px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .topbar h1 { font-size: 20px; font-weight: 500; letter-spacing: -0.02em; }
+  .topbar .sub { font-size: 13px; color: var(--text-4); margin-top: 2px; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .range-select { display: flex; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+  .range-select button {
+    background: none; border: none; color: var(--text-4); font-family: inherit;
+    font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 4px; cursor: pointer;
+  }
+  .range-select button:hover { color: var(--text-2); }
+  .range-select button.active { background: var(--surface-2); color: var(--text); }
+  .btn {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-2);
+    font-family: inherit; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+  }
+  .btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .btn-primary { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+  .btn-primary:hover { background: var(--violet-hover); }
+
+  /* ── stat cards ─────────────────────────── */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .card {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .card .clabel { font-size: 11px; color: var(--text-4); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; }
+  .card .cval { font-size: 22px; font-weight: 500; letter-spacing: -0.02em; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .card .csub { font-size: 11px; margin-top: 6px; display: flex; align-items: center; gap: 5px; color: var(--text-4); }
+  .csub .up { color: var(--green); }
+  .csub .down { color: var(--red); }
+  .csub .warn { color: var(--amber); }
+
+  /* ── chart panel ────────────────────────── */
+  .panel-box {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;
+  }
+  .panel-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .panel-head h2 { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+  .panel-head p { font-size: 12px; color: var(--text-4); margin-top: 2px; }
+  .legend { display: flex; gap: 16px; font-size: 11px; color: var(--text-3); align-items: center; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .sw.input { background: var(--indigo); }
+  .sw.output { background: var(--violet); opacity: 0.55; }
+
+  .chart-wrap { position: relative; height: 220px; }
+  .chart-grid { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .chart-grid .gline { border-top: 1px solid rgba(255,255,255,0.04); }
+  .chart-svg { position: relative; width: 100%; height: 100%; }
+  .chart-svg svg { display: block; width: 100%; height: 100%; }
+  .bar-rect { transition: opacity 0.15s; }
+  .bar-rect:hover { opacity: 1; }
+  .bar-rect { opacity: 0.85; cursor: pointer; }
+
+  /* ── lower grid ─────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .sess-row {
+    display: flex; align-items: center; gap: 12px; padding: 11px 4px;
+    border-bottom: 1px solid var(--border-subtle); cursor: pointer; border-radius: 6px;
+  }
+  .sess-row:hover { background: rgba(255,255,255,0.03); }
+  .sess-row:last-child { border-bottom: none; }
+  .sess-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-3); width: 90px; flex-shrink: 0; }
+  .sess-name { font-size: 13px; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sess-model { font-size: 11px; color: var(--text-4); font-family: 'JetBrains Mono', monospace; }
+  .sess-toks { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .sess-cost { font-size: 13px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; }
+  .pill { font-size: 10px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-3); font-weight: 500; white-space: nowrap; }
+  .pill.ok { color: var(--green); border-color: rgba(16,185,129,0.35); }
+  .pill.alert { color: var(--amber); border-color: rgba(251,191,36,0.35); }
+  .pill.burn { color: var(--violet); border-color: rgba(113,112,255,0.4); }
+  .pill.err { color: var(--red); border-color: rgba(248,113,113,0.4); }
+
+  .progress { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+  .progress i { display: block; height: 100%; border-radius: 999px; background: var(--indigo); }
+  .budget-bar { margin: 10px 0 14px; }
+  .budget-bar .labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); margin-bottom: 6px; }
+  .budget-bar .labels b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .brow { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px; }
+  .brow:last-child { border-bottom: none; }
+  .brow .k { color: var(--text-3); }
+  .brow .v { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 500; }
+  .brow .v.green { color: var(--green); }
+  .brow .v.amber { color: var(--amber); }
+
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .kpi { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .kpi .k { font-size: 11px; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.07em; }
+  .kpi .v { font-size: 20px; font-weight: 500; margin-top: 8px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .kpi .s { font-size: 11px; color: var(--text-4); margin-top: 3px; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none; align-items: center; gap: 10px; z-index: 50;
+  }
+  .toast.show { display: flex; animation: fadein 0.2s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 1100px) { .cards { grid-template-columns: 1fr 1fr; } .grid-2 { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { .sidebar { display: none; } .main { padding: 18px 16px 40px; } .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">◈</div>
+      <span>tokentrack</span>
+    </div>
+    <button class="nav-item active" data-view="overview"><span class="nicon">▤</span>Overview</button>
+    <button class="nav-item" data-view="usage"><span class="nicon">◔</span>Usage</button>
+    <button class="nav-item" data-view="sessions"><span class="nicon">☰</span>Sessions<span class="spacer"></span><span class="nav-badge" style="font-size:10px;background:rgba(255,255,255,0.06);color:var(--text-3);padding:1px 7px;border-radius:999px;">143</span></button>
+    <button class="nav-item" data-view="budget"><span class="nicon">◈</span>Budget & alerts</button>
+    <button class="nav-item" data-view="models"><span class="nicon">▥</span>Models</button>
+    <button class="nav-item" data-view="account"><span class="nicon">○</span>Account</button>
+    <div class="side-foot">
+      <div class="who">opencode-zen · default profile</div>
+      <div class="pw"><span class="dot"></span>synced 2 min ago</div>
+    </div>
+  </aside>
+
+  <!-- main -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Usage overview</h1>
+        <div class="sub">Token consumption and spend across all opencode sessions</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="range-select" id="rangeSelect">
+          <button data-range="7">7d</button>
+          <button data-range="14" class="active">14d</button>
+          <button data-range="30">30d</button>
+        </div>
+        <button class="btn" id="exportBtn">Export</button>
+        <button class="btn btn-primary" id="alertBtn">Set alert</button>
+      </div>
+    </div>
+
+    <!-- stat cards -->
+    <div class="cards" id="statCards"></div>
+
+    <!-- main chart -->
+    <div class="panel-box">
+      <div class="panel-head">
+        <div>
+          <h2>Token volume</h2>
+          <p id="chartRange">Last 14 days</p>
+        </div>
+        <div class="legend">
+          <span><span class="sw input"></span>Input</span>
+          <span><span class="sw output"></span>Output</span>
+          <span class="mono" style="font-size:11px;">total 8.42M</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-grid">
+          <div class="gline"></div><div class="gline"></div><div class="gline"></div><div class="gline"></div>
+        </div>
+        <div class="chart-svg" id="chart"></div>
+      </div>
+    </div>
+
+    <!-- lower grid -->
+    <div class="grid-2">
+      <div class="panel-box">
+        <div class="panel-head">
+          <div><h2>Recent sessions</h2><p>Click a row for details</p></div>
+        </div>
+        <div id="recentSessions"></div>
+      </div>
+      <div class="panel-box">
+        <div class="panel-head">
+          <div><h2>Monthly budget</h2><p>August 2026 · $150.00</p></div>
+          <button class="btn" id="budgetEdit">Edit budget</button>
+        </div>
+        <div class="budget-bar">
+          <div class="labels"><span>Spent <b>$84.19</b></span><span>Remaining <b>$65.81</b></span></div>
+          <div class="progress"><i id="budgetFill" style="width:56%;background:var(--indigo);"></i></div>
+        </div>
+        <div class="brow"><span class="k">Burn rate</span><span class="v">$2.91 / day</span></div>
+        <div class="brow"><span class="k">Days left</span><span class="v">23</span></div>
+        <div class="brow"><span class="k">Projected month-end spend</span><span class="v amber">$138.40</span></div>
+        <div class="brow"><span class="k">Projected vs budget</span><span class="v green">−$11.60 under</span></div>
+        <div class="brow"><span class="k">Avg cost per session</span><span class="v">$0.59</span></div>
+      </div>
+    </div>
+
+    <!-- kpis -->
+    <div class="kpi-grid" style="margin-top:20px;">
+      <div class="kpi"><div class="k">Most expensive model</div><div class="v">claude-opus-4.6</div><div class="s">$28.63 this month · 34% of spend</div></div>
+      <div class="kpi"><div class="k">Heaviest day</div><div class="v">Aug 8</div><div class="s">850K tokens · +37% vs average</div></div>
+      <div class="kpi"><div class="k">Sessions over $5.00</div><div class="v">3</div><div class="s">$18.37 combined · 22% of spend</div></div>
+      <div class="kpi"><div class="k">Forecast accuracy (7d)</div><div class="v">±4.2%</div><div class="s">forecast vs actual</div></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast">✓ Exported usage report (CSV)</div>
+
+<script>
+/* ── data ─────────────────────────────────────────────── */
+const DATA = {
+  7:  [
+    { d: "Aug 2", in: 420, out: 168 }, { d: "Aug 3", in: 265, out: 95 },
+    { d: "Aug 4", in: 480, out: 201 }, { d: "Aug 5", in: 390, out: 150 },
+    { d: "Aug 6", in: 520, out: 210 }, { d: "Aug 7", in: 445, out: 176 },
+    { d: "Aug 8", in: 610, out: 240 },
+  ],
+  14: [
+    { d: "Jul 26", in: 182, out: 61 }, { d: "Jul 27", in: 240, out: 88 },
+    { d: "Jul 28", in: 310, out: 120 }, { d: "Jul 29", in: 205, out: 74 },
+    { d: "Jul 30", in: 160, out: 52 }, { d: "Jul 31", in: 290, out: 101 },
+    { d: "Aug 1", in: 350, out: 132 }, { d: "Aug 2", in: 420, out: 168 },
+    { d: "Aug 3", in: 265, out: 95 }, { d: "Aug 4", in: 480, out: 201 },
+    { d: "Aug 5", in: 390, out: 150 }, { d: "Aug 6", in: 520, out: 210 },
+    { d: "Aug 7", in: 445, out: 176 }, { d: "Aug 8", in: 610, out: 240 },
+  ],
+  30: [
+    { d: "Jul 10", in: 150, out: 48 }, { d: "Jul 12", in: 220, out: 71 },
+    { d: "Jul 14", in: 180, out: 60 }, { d: "Jul 16", in: 310, out: 99 },
+    { d: "Jul 18", in: 240, out: 82 }, { d: "Jul 20", in: 365, out: 128 },
+    { d: "Jul 22", in: 280, out: 95 }, { d: "Jul 24", in: 420, out: 152 },
+    { d: "Jul 26", in: 182, out: 61 }, { d: "Jul 28", in: 310, out: 120 },
+    { d: "Jul 30", in: 160, out: 52 }, { d: "Jul 31", in: 290, out: 101 },
+    { d: "Aug 1", in: 350, out: 132 }, { d: "Aug 2", in: 420, out: 168 },
+    { d: "Aug 3", in: 265, out: 95 }, { d: "Aug 4", in: 480, out: 201 },
+    { d: "Aug 5", in: 390, out: 150 }, { d: "Aug 6", in: 520, out: 210 },
+    { d: "Aug 7", in: 445, out: 176 }, { d: "Aug 8", in: 610, out: 240 },
+  ],
+};
+
+const SESSIONS = [
+  { id: "sess_8f2a", name: "Refactor auth middleware to JWT", model: "opus-4.6", in: 812400, out: 245100, cost: 9.84, status: "done" },
+  { id: "sess_2e6f", name: "Draft RFC: unified telemetry pipeline", model: "gemini-2.5", in: 685000, out: 202000, cost: 6.42, status: "alert" },
+  { id: "sess_5f7a", name: "Migrate billing service to v2 API", model: "opus-4.6", in: 441000, out: 118000, cost: 5.11, status: "done" },
+  { id: "sess_9b1c", name: "Debug flaky e2e checkout flow", model: "sonnet-4.5", in: 523700, out: 132800, cost: 3.71, status: "burn" },
+  { id: "sess_4d5e", name: "Summarize thread → RFC outline", model: "deepseek-v4", in: 1240000, out: 310000, cost: 2.08, status: "done" },
+  { id: "sess_3h9c", name: "API client codegen types", model: "sonnet-4.5", in: 367000, out: 99000, cost: 2.60, status: "err" },
+  { id: "sess_0i1d", name: "CI matrix rework", model: "deepseek-v4", in: 890000, out: 240000, cost: 1.49, status: "alert" },
+  { id: "sess_6g8b", name: "Docs: deployment guide", model: "gpt-4o", in: 198000, out: 61000, cost: 1.23, status: "done" },
+];
+
+const STATUS_PILL = {
+  done: '<span class="pill ok">completed</span>',
+  alert: '<span class="pill alert">near-limit</span>',
+  burn: '<span class="pill burn">high burn</span>',
+  err: '<span class="pill err">error</span>',
+};
+
+/* ── chart ───────────────────────────────────────────── */
+function renderChart(range) {
+  const rows = DATA[range];
+  const max = Math.max(...rows.map(r => r.in + r.out));
+  const W = 760, H = 220, PAD = 8, GAP = range === 30 ? 14 : 20;
+  const bw = Math.min(34, (W - PAD * 2 - GAP * (rows.length - 1)) / rows.length);
+  const inner = H - 6;
+  let bars = '';
+  rows.forEach((r, i) => {
+    const hIn = (r.in / max) * inner;
+    const hOut = (r.out / max) * inner;
+    const x = PAD + i * (bw + GAP);
+    const yIn = H - hIn, yOut = H - hOut - hIn;
+    bars += `<rect class="bar-rect" x="${x}" y="${yIn}" width="${bw}" height="${hIn}" fill="#5e6ad2" rx="3">
+        <title>${r.d}: ${(r.in/1000).toFixed(2)}K in (${r.in/1000 + r.out/1000}K total)</title></rect>
+      <rect class="bar-rect" x="${x}" y="${yOut}" width="${bw}" height="${hOut}" fill="#7170ff" rx="3" opacity="0.85">
+        <title>${r.d}: ${(r.out/1000).toFixed(2)}K out</title></rect>`;
+  });
+  document.getElementById('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${bars}</svg>`;
+  document.getElementById('chartRange').textContent = `Last ${range} days`;
+  document.querySelectorAll('#rangeSelect button').forEach(b => b.classList.toggle('active', +b.dataset.range === range));
+}
+
+/* ── sessions list ─────────────────────────────────────── */
+function renderSessions() {
+  document.getElementById('recentSessions').innerHTML = SESSIONS.map(s => `
+    <div class="sess-row" data-sid="${s.id}">
+      <span class="sess-id">${s.id}</span>
+      <span class="sess-name">${s.name}</span>
+      ${STATUS_PILL[s.status]}
+      <span class="sess-model">${s.model}</span>
+      <span class="sess-toks">${((s.in + s.out)/1000).toFixed(0)}K</span>
+      <span class="sess-cost">$${s.cost.toFixed(2)}</span>
+    </div>`).join('');
+}
+
+/* ── interactions ───────────────────────────────────────── */
+document.getElementById('rangeSelect').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (btn) renderChart(+btn.dataset.range);
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+});
+
+document.getElementById('alertBtn').addEventListener('click', () => {
+  const t = document.getElementById('toast');
+  t.textContent = '✓ Alert set: $0.30/1K tokens · daily digest';
+  t.classList.add('show');
+  setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Exported usage report (CSV)'; }, 2200);
+});
+
+document.getElementById('budgetEdit').addEventListener('click', () => {
+  const t = document.getElementById('toast');
+  t.textContent = '✓ Budget editor opened (mock)';
+  t.classList.add('show');
+  setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Exported usage report (CSV)'; }, 2200);
+});
+
+document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    const t = document.getElementById('toast');
+    t.textContent = '✓ View: ' + item.dataset.view + ' (mock)';
+    t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); t.textContent = '✓ Exported usage report (CSV)'; }, 1800);
+  });
+});
+
+/* ── init ───────────────────────────────────────────────── */
+renderChart(14);
+renderSessions();
+</script>
+</body>
+</html>

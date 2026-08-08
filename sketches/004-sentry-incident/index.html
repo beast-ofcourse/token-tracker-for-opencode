@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tokentrack — Incident monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #1f1633;
+    --bg-deep: #150f23;
+    --border: #362d59;
+    --border-strong: #584674;
+    --purple: #6a5fc1;
+    --muted-purple: #79628c;
+    --deep-violet: #422082;
+    --lime: #c2ef4e;
+    --coral: #ffb287;
+    --pink: #fa7faa;
+    --white: #ffffff;
+    --gray: #e5e7eb;
+    --muted: #a99ec4;
+    --dim: #7d7395;
+    --red: #ff5f5f;
+    --amber: #ffbc6e;
+  }
+  body {
+    font-family: 'Rubik', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    font-size: 15px;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ── layout ─────────────────────────────── */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 232px; flex-shrink: 0; background: var(--bg-deep);
+    border-right: 1px solid var(--border); padding: 20px 14px;
+    display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; }
+  .brand .mark {
+    width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--purple), var(--deep-violet));
+    display: grid; place-items: center; font-size: 14px; font-weight: 600; box-shadow: rgba(22, 15, 36, 0.9) 0px 4px 12px;
+  }
+  .brand .name { font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+  .nav-sec { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25px; color: var(--dim); padding: 14px 8px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
+    font-size: 15px; font-weight: 500; color: var(--muted); cursor: pointer; background: none; border: none;
+    font-family: inherit; text-align: left; width: 100%;
+  }
+  .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.06); }
+  .nav-item.active { color: var(--white); background: var(--deep-violet); box-shadow: inset 0 1px 3px rgba(0,0,0,0.4); }
+  .nav-item .spacer { flex: 1; }
+  .count-badge { font-size: 11px; font-weight: 600; color: var(--lime); background: rgba(194,239,78,0.12); border-radius: 999px; padding: 1px 8px; }
+  .proj-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 13px; color: var(--dim); border-radius: 6px; cursor: pointer; }
+  .proj-item:hover { color: var(--muted); }
+  .proj-item .pdot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .side-foot { margin-top: auto; padding: 12px 8px 0; border-top: 1px solid var(--border); font-size: 12px; color: var(--dim); }
+  .side-foot .row { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
+
+  .main { flex: 1; min-width: 0; padding: 26px 30px 60px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .topbar h1 { font-size: 27px; font-weight: 500; letter-spacing: 0.2px; }
+  .topbar .sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .top-actions { display: flex; gap: 12px; align-items: center; }
+
+  /* ── buttons (Sentry: muted purple, inset) ── */
+  .btn {
+    font-family: inherit; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2px;
+    padding: 9px 16px; border-radius: 13px; cursor: pointer; border: 1px solid var(--border-strong);
+    background: var(--purple-muted); color: var(--white);
+    box-shadow: rgba(0,0,0,0.18) 0px 1px 3px 0px inset;
+    transition: box-shadow 0.15s;
+  }
+  .btn:hover { box-shadow: rgba(0,0,0,0.25) 0px 0.5rem 1.5rem; }
+  .btn-lime { background: var(--lime); color: #1f1633; border-color: var(--lime); font-weight: 700; }
+  .btn-ghost { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.18); box-shadow: rgba(0,0,0,0.08) 0px 2px 8px; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.16); }
+  .btn-white { background: var(--white); color: #1f1633; border-color: var(--white); font-weight: 700; }
+  .btn-white:hover { background: var(--purple); color: var(--white); }
+
+  /* ── stat strip ─────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .stat {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .stat::after { content: ""; position: absolute; right: -30px; top: -30px; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, rgba(106,95,193,0.25), transparent 70%); }
+  .stat .slab { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25px; color: var(--dim); }
+  .stat .sval { font-size: 30px; font-weight: 500; margin-top: 8px; letter-spacing: 0.2px; font-variant-numeric: tabular-nums; }
+  .stat .ssub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat .ssub .good { color: var(--lime); }
+  .stat .ssub .warn { color: var(--coral); }
+  .stat.accent { background: linear-gradient(135deg, rgba(106,95,193,0.28), rgba(66,32,130,0.35)); border-color: var(--border-strong); }
+
+  /* ── panels ─────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 22px; }
+  .panel { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .panel-head h2 { font-size: 18px; font-weight: 500; letter-spacing: 0.2px; }
+  .panel-head .lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25px; color: var(--dim); }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .lg { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+  .lg.in { background: var(--purple); }
+  .lg.out { background: var(--coral); }
+
+  /* ── chart (bars) ───────────────────────── */
+  .chart-wrap { height: 190px; position: relative; }
+  .grid-lines { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .grid-lines i { border-top: 1px solid rgba(255,255,255,0.05); }
+  .chart-svg { position: relative; width: 100%; height: 100%; }
+  .chart-svg svg { width: 100%; height: 100%; display: block; }
+  .bar { cursor: pointer; transition: opacity .15s; }
+  .bar:hover { opacity: 1; }
+  .bar.in { opacity: 0.85; }
+  .bar.out { opacity: 0.75; }
+
+  /* ── model split (Sentry: uppercase mono labels) */
+  .mrow { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .mrow:last-child { border-bottom: none; }
+  .mrow .mn { width: 180px; font-size: 13px; font-weight: 500; color: var(--gray); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mrow .mt { flex: 1; height: 7px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; }
+  .mrow .mt i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--purple), #9a75f0); }
+  .mrow .mp { width: 48px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .mrow .mc { width: 72px; text-align: right; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  /* ── incident list (the core Sentry pattern) */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .fchip {
+    font-family: inherit; font-size: 12px; font-weight: 500; letter-spacing: 0.2px;
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; color: var(--muted);
+    background: none; border: 1px solid var(--border); text-transform: uppercase;
+  }
+  .fchip:hover { color: var(--white); border-color: var(--border-strong); }
+  .fchip.active { background: var(--deep-violet); color: var(--white); border-color: var(--deep-violet); }
+  .fchip .n { opacity: 0.7; margin-left: 4px; }
+
+  .incident {
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+    background: rgba(255,255,255,0.02); cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .incident:hover { border-color: var(--border-strong); background: rgba(255,255,255,0.045); }
+  .incident.open { border-color: var(--purple); background: rgba(106,95,199,0.08); }
+  .inc-top { display: flex; align-items: center; gap: 12px; }
+  .sev { flex-shrink: 0; }
+  .sev-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
+  .sev-dot.high { background: var(--red); box-shadow: 0 0 10px rgba(255,95,95,0.6); }
+  .sev-dot.med { background: var(--coral); box-shadow: 0 0 8px rgba(255,178,135,0.5); }
+  .sev-dot.low { background: var(--lime); }
+  .sev-dot.ok { background: #5bc98a; }
+  .sev-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25px; }
+  .sev-lbl.high { color: var(--red); }
+  .sev-lbl.med { color: var(--coral); }
+  .sev-lbl.low { color: var(--lime); }
+  .sev-lbl.ok { color: #5bc98a; }
+  .inc-title { flex: 1; font-size: 14px; font-weight: 500; color: var(--white); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inc-meta { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--dim); flex-shrink: 0; }
+  .inc-meta .mono { font-size: 11px; }
+  .inc-meta .cost { color: var(--gray); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .inc-arrow { color: var(--dim); font-size: 12px; }
+  .inc-detail { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; }
+  .inc-detail.open { display: block; }
+  .msgline { display: flex; gap: 10px; padding: 5px 0; color: var(--muted); }
+  .msgline .role { width: 90px; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.2px; padding-top: 2px; }
+  .msgline .role.user { color: var(--coral); }
+  .msgline .role.asst { color: var(--lime); }
+  .msgline .txt { flex: 1; }
+  .msgline .toks { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .inc-footer { margin-top: 10px; display: flex; gap: 8px; }
+
+  /* ── budget panel ───────────────────────── */
+  .brow { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .brow:last-child { border-bottom: none; }
+  .brow .k { color: var(--muted); }
+  .brow .v { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .brow .v.good { color: var(--lime); }
+  .brow .v.warn { color: var(--coral); }
+  .bprog { height: 8px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; margin: 8px 0 14px; }
+  .bprog i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--purple), var(--lime)); width: 56%; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+  .kpi { background: var(--bg-deep); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .kpi .k { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25px; color: var(--dim); }
+  .kpi .v { font-size: 18px; font-weight: 500; margin-top: 6px; }
+  .kpi .s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── toast ──────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 22px; right: 22px; background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(18px) saturate(180%); border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px; padding: 12px 16px; font-size: 13px; display: none;
+    box-shadow: rgba(0,0,0,0.25) 0px 12px 32px; align-items: center; gap: 10px;
+    animation: slideup 0.25s ease;
+  }
+  .toast.show { display: flex; }
+  @keyframes slideup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .toast .tick { color: var(--lime); font-weight: 700; }
+
+  @media (max-width: 1100px) { .stats { grid-template-columns: 1fr 1fr; } .grid-2 { grid-template-columns: 1fr; } }
+  @media (max-width: 720px) { .sidebar { display: none; } .main { padding: 18px 16px 40px; } .stats { grid-template-columns: 1fr; } .kpi-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">⬢</div><div class="nm">tokentrack</div></div>
+    <div class="nav-sec">Monitor</div>
+    <button class="nav-item active"><span>▤</span>Overview</button>
+    <button class="nav-item"><span>◔</span>Usage</button>
+    <button class="nav-item"><span>☰</span>Events<span class="spacer"></span><span class="count-badge">23</span></button>
+    <button class="nav-item"><span>◈</span>Budget</button>
+    <button class="nav-item"><span>▥</span>Models</button>
+    <div class="nav-sec">Projects</div>
+    <div class="proj-item"><span class="pdot" style="background:var(--purple)"></span>opensource</div>
+    <div class="proj-item"><span class="pdot" style="background:var(--lime)"></span>quanta-cli</div>
+    <div class="proj-item"><span class="pdot" style="background:var(--coral)"></span>quantum-app</div>
+    <div class="side-foot">
+      <div class="row" style="color:var(--muted);">opencode-zen · default provider</div>
+      <div class="row"><span style="width:7px;height:7px;border-radius:50%;background:var(--lime);display:inline-block;"></span>synced 2 min ago</div>
+    </div>
+  </aside>
+
+  <!-- main -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Incident monitor</h1>
+        <div class="sub">Every opencode session is an event. Triage your token spend like you triage issues.</div>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-ghost" id="exportBtn">Export CSV</button>
+        <button class="btn btn-lime" id="alertBtn">+ Set alert</button>
+      </div>
+    </div>
+
+    <!-- stats -->
+    <div class="stats">
+      <div class="stat accent"><div class="slab">Tokens · last 7d</div><div class="sval">8.42M</div><div class="ssub"><span class="warn">▲ 12%</span> vs previous week</div></div>
+      <div class="stat"><div class="slab">Cost · last 7d</div><div class="sval">$84.19</div><div class="ssub"><span class="warn">▲ 9%</span> vs previous week</div></div>
+      <div class="stat"><div class="slab">Events opened</div><div class="sval">101</div><div class="ssub">of 143 total sessions</div></div>
+      <div class="stat"><div class="slab">High-spend events</div><div class="sval">5</div><div class="ssub"><span class="good">▸ triage below</span></div></div>
+    </div>
+
+    <div class="grid-2">
+      <!-- chart -->
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Token volume</h2><div class="lbl">per day · input vs output</div></div>
+          <div class="legend">
+            <span><span class="lg in"></span>input</span>
+            <span><span class="lg out"></span>output</span>
+            <span class="mono" style="font-size:11px;">14 days</span>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <div class="grid-lines"><i></i><i></i><i></i><i></i></div>
+          <div class="chart-svg" id="chart"></div>
+        </div>
+      </div>
+
+      <!-- model split -->
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Spend by model</h2><div class="lbl">august 2026 · $84.19 total</div></div>
+        </div>
+        <div id="modelSplit"></div>
+      </div>
+    </div>
+
+    <!-- incidents -->
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>Token events</h2><div class="lbl">recent sessions ordered by cost</div></div>
+        <div class="filter-row" id="filters" style="margin-bottom:0;">
+          <button class="fchip active" data-sev="all">All <span class="n">10</span></button>
+          <button class="fchip" data-sev="high">High <span class="n">3</span></button>
+          <button class="fchip" data-sev="med">Medium <span class="n">3</span></button>
+          <button class="fchip" data-sev="low">Low <span class="n">4</span></button>
+        </div>
+      </div>
+      <div id="incidents"></div>
+    </div>
+
+    <!-- kpis + budget -->
+    <div class="kpi-row">
+      <div class="kpi"><div class="k">Largest single event</div><div class="v">$9.84</div><div class="s">sess_8f2a · claude-opus-4.6</div></div>
+      <div class="kpi"><div class="k">Events over $5</div><div class="v">3</div><div class="s">≥ 22% of monthly spend</div></div>
+      <div class="kpi"><div class="k">Avg cost / event</div><div class="v">$0.59</div><div class="s">143 events · 30 days</div></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"><span class="tick">✓</span><span id="toastMsg">Exported event stream (CSV)</span></div>
+
+<script>
+/* ── data ─────────────────────────────────────────────── */
+const DAYS = [
+  { d: "Jul 26", in: 182, out: 61 }, { d: "Jul 27", in: 240, out: 88 },
+  { d: "Jul 28", in: 310, out: 120 }, { d: "Jul 29", in: 205, out: 74 },
+  { d: "Jul 30", in: 160, out: 52 }, { d: "Jul 31", in: 290, out: 101 },
+  { d: "Aug 1", in: 350, out: 132 }, { d: "Aug 2", in: 420, out: 168 },
+  { d: "Aug 3", in: 265, out: 95 }, { d: "Aug 4", in: 480, out: 201 },
+  { d: "Aug 5", in: 390, out: 150 }, { d: "Aug 6", in: 520, out: 210 },
+  { d: "Aug 7", in: 445, out: 176 }, { d: "Aug 8", in: 610, out: 240 },
+];
+
+const MODELS = [
+  { name: "claude-opus-4.6", pct: 34, cost: "$28.63" },
+  { name: "claude-sonnet-4.5", pct: 22, cost: "$18.52" },
+  { name: "gpt-4o", pct: 18, cost: "$15.15" },
+  { name: "deepseek-v4-flash", pct: 16, cost: "$13.47" },
+  { name: "gemini-2.5-pro", pct: 10, cost: "$8.42" },
+];
+
+const INCIDENTS = [
+  { id: "sess_8f2a", sev: "high", title: "Refactor auth middleware to JWT", model: "claude-opus-4.6", in: 812400, out: 245100, cost: 9.84, msgs: [
+    { role: "user", txt: "Refactor auth middleware to use JWT with refresh rotation", toks: "12,408 in" },
+    { role: "asst", txt: "Plan: split verify(), attach claims, add /refresh route", toks: "4,210 out" },
+    { role: "user", txt: "Also add per-user rate limiting while you're in there", toks: "3,105 in" },
+    { role: "asst", txt: "Implemented JWT + limiter. 14 files changed, 811 added.", toks: "8,994 out" },
+  ]},
+  { id: "sess_2e6f", sev: "high", title: "Draft RFC: unified telemetry pipeline", model: "gemini-2.5-pro", in: 685000, out: 202000, cost: 6.42, msgs: [
+    { role: "user", txt: "Summarize 40-thread discussion into RFC outline", text: "Summarize 40-thread discussion into RFC outline", toks: "41,220 in" },
+    { role: "asst", txt: "RFC: motivation, goals, non-goals, API surface, migration path", toks: "9,118 out" },
+  ]},
+  { id: "sess_5f7a", sev: "high", title: "Migrate billing service to v2 API", model: "claude-opus-4.6", in: 441000, out: 118000, cost: 5.11, msgs: [] },
+  { id: "sess_9b1c", sev: "med", title: "Debug flaky e2e checkout flow", model: "claude-sonnet-4.5", in: 523700, out: 132800, cost: 3.71, msgs: [
+    { role: "user", txt: "Checkout test fails 1 in 5 runs on CI", text: "Checkout test fails 1 in 5 runs on CI", toks: "9,872 in" },
+    { role: "asst", txt: "Race between Stripe webhook and cart clear. Adding retry.", toks: "2,340 out" },
+  ]},
+  { id: "sess_1j2e", sev: "med", title: "Refactor queue worker retries", model: "claude-opus-4.6", in: 276000, out: 74000, cost: 3.28, msgs: [] },
+  { id: "sess_3h9c", sev: "med", title: "API client codegen types", model: "claude-sonnet-4.5", in: 367000, out: 99000, cost: 2.60, msgs: [] },
+  { id: "sess_4d5e", sev: "low", title: "Summarize thread → RFC outline", model: "deepseek-v4-flash", in: 1240000, out: 310000, cost: 2.08, msgs: [] },
+  { id: "sess_0i1d", sev: "low", title: "CI matrix rework", model: "deepseek-v4-flash", in: 890000, out: 240000, cost: 1.49, msgs: [] },
+  { id: "sess_6g8b", sev: "low", title: "Docs: deployment guide", model: "gpt-4o", in: 198000, out: 61000, cost: 1.23, msgs: [] },
+  { id: "sess_7k3f", sev: "low", title: "Upgrade ORM to v6", model: "gpt-4o", in: 310000, out: 98000, cost: 1.51, msgs: [] },
+];
+
+const SEV_LBL = { high: ["high", "HIGH"], med: ["med", "MED"], low: ["low", "LOW"] };
+
+/* ── chart ───────────────────────────────────────────── */
+function renderChart() {
+  const max = Math.max(...DAYS.map(d => d.in + d.out));
+  const W = 640, H = 185, PAD = 8, GAP = 22;
+  const bw = Math.min(30, (W - PAD * 2 - GAP * (DAYS.length - 1)) / DAYS.length);
+  let bars = '';
+  DAYS.forEach((r, i) => {
+    const hIn = (r.in / max) * (H - 8), hOut = (r.out / max) * (H - 8);
+    const x = PAD + i * (bw + GAP);
+    bars += `<rect class="bar in" x="${x}" y="${H - hIn}" width="${bw}" height="${hIn}" rx="3" fill="#8965c7">
+        <title>${r.d}: ${r.in/1000}K in · total ${(r.in+r.out)/1000}K</title></rect>
+      <rect class="bar out" x="${x}" y="${H - hOut - hIn}" width="${bw}" height="${hOut}" rx="3" fill="#ffb287">
+        <title>${r.d}: ${r.out/1000}K out</title></rect>`;
+  });
+  document.getElementById('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+/* ── model split ─────────────────────────────────────── */
+function renderModels() {
+  document.getElementById('modelSplit').innerHTML = MODELS.map(m => `
+    <div class="mrow">
+      <span class="mn">${m.name}</span>
+      <span class="mt"><i style="width:${m.pct}%"></i></span>
+      <span class="mp">${m.pct}%</span>
+      <span class="mc">${m.cost}</span>
+    </div>`).join('');
+}
+
+/* ── incidents ────────────────────────────────────────── */
+function fmtK(n) { return n >= 1000000 ? (n/1000000).toFixed(2) + 'M' : (n/1000).toFixed(0) + 'K'; }
+
+function renderIncidents(sev) {
+  const list = INCIDENTS.filter(i => sev === 'all' || i.sev === sev);
+  const el = document.getElementById('incidents');
+  el.innerHTML = list.map(i => {
+    const [sevCls, sevLbl] = SEV_LBL[i.sev];
+    const detail = i.msgs.length ? i.msgs.map(m => `
+      <div class="msgline"><span class="role ${m.role}">${m.role === 'user' ? 'USER' : 'MODEL'}</span>
+        <span class="txt">${m.txt}</span>
+        <span class="toks">${m.toks}</span></div>`).join('')
+      : `<div class="msgline"><span class="txt" style="color:var(--dim);">No message-level trace for this event.</span></div>`;
+    return `
+    <div class="incident" data-sev="${i.sev}">
+      <div class="inc-top">
+        <span class="sev"><span class="sev-dot ${sevCls}"></span><span class="sev-lbl ${sevCls}">${sevLbl}</span></span>
+        <span class="inc-title">${i.title}</span>
+        <span class="inc-meta">
+          <span class="mono">${i.model.split('-').slice(0,2).join('-')}</span>
+          <span>${fmtK(i.in + i.out)} tokens</span>
+          <span class="cost">$${i.cost.toFixed(2)}</span>
+          <span class="inc-arrow">▾</span>
+        </span>
+      </div>
+      <div class="inc-detail">
+        ${detail}
+        <div class="inc-footer" style="margin-top:10px;display:flex;gap:8px;">
+          <button class="btn" style="padding:5px 10px;font-size:10px;">View session</button>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:10px;">Mute</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── interactions ─────────────────────────────────────── */
+document.getElementById('filters').addEventListener('click', e => {
+  const chip = e.target.closest('.fchip');
+  if (!chip) return;
+  document.querySelectorAll('.fchip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  renderIncidents(chip.dataset.sev);
+});
+
+document.getElementById('incidents').addEventListener('click', e => {
+  const inc = e.target.closest('.incident');
+  if (!inc) return;
+  inc.classList.toggle('open');
+  const d = inc.querySelector('.inc-detail');
+  if (d) d.classList.toggle('open');
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+document.getElementById('exportBtn').addEventListener('click', () => showToast('Exported event stream (CSV) · 101 events'));
+document.getElementById('alertBtn').addEventListener('click', () => showToast('Alert created · $25/day threshold'));
+
+/* ── init ─────────────────────────────────────────────── */
+renderChart();
+renderModels();
+renderIncidents('all');
+</script>
+</body>
+</html>

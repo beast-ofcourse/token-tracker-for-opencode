@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tokentrack — opencode usage monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #201d1d;
+    --bg-2: #302c2c;
+    --fg: #fdfcfc;
+    --muted: #9a9898;
+    --dim: #6e6e73;
+    --border: rgba(15, 0, 0, 0.12);
+    --border-strong: #646262;
+    --blue: #007aff;
+    --blue-hover: #0056b3;
+    --green: #30d158;
+    --orange: #ff9f0a;
+    --red: #ff3b30;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  /* ── header ─────────────────────────────── */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 20px; border-bottom: 1px solid var(--border); }
+  .logo { font-weight: 700; font-size: 16px; letter-spacing: 0.02em; }
+  .logo .cursor { display: inline-block; width: 9px; height: 16px; background: var(--green); vertical-align: -2px; margin-left: 6px; animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .status-line { color: var(--muted); font-size: 12px; }
+  .status-line .dot { color: var(--green); }
+
+  /* ── tabs ───────────────────────────────── */
+  nav.tabs { display: flex; gap: 28px; margin: 20px 0 4px; }
+  nav.tabs button {
+    font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1;
+    background: none; border: none; color: var(--muted); padding: 8px 2px 10px;
+    cursor: pointer; border-bottom: 2px solid transparent;
+  }
+  nav.tabs button:hover { color: var(--fg); }
+  nav.tabs button.active { color: var(--fg); border-bottom-color: var(--muted); }
+  .panel { display: none; padding-top: 20px; }
+  .panel.active { display: block; }
+
+  /* ── stat cards ─────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat { border: 1px solid var(--border); padding: 14px 16px; background: var(--bg); }
+  .stat:hover { border-color: var(--border-strong); }
+  .stat .label { color: var(--muted); font-size: 12px; text-transform: lowercase; }
+  .stat .value { font-size: 26px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .stat .delta { font-size: 12px; margin-top: 4px; }
+  .delta.up { color: var(--orange); }
+  .delta.down { color: var(--green); }
+
+  /* ── bar chart ──────────────────────────── */
+  .chart-card { border: 1px solid var(--border); padding: 16px; margin-bottom: 24px; }
+  .chart-card h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 14px; text-transform: lowercase; }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding-top: 8px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; min-height: 2px; background: var(--bg-2); transition: background 0.15s; }
+  .bar-col:hover .bar { background: var(--blue); }
+  .bar-col .bar.in { background: var(--bg-2); }
+  .bar-col .bar.out { background: var(--muted); }
+  .bar-col:hover .bar.in { background: var(--blue); }
+  .bar-col:hover .bar.out { background: var(--blue-hover); }
+  .bar-col .day { font-size: 10px; color: var(--dim); }
+  .bar-col:hover .day { color: var(--fg); }
+  .legend { display: flex; gap: 18px; margin-top: 12px; font-size: 11px; color: var(--muted); }
+  .legend span::before { content: "▮"; margin-right: 5px; }
+  .legend .in::before { color: var(--blue); }
+  .legend .out::before { color: var(--muted); }
+
+  /* ── filter chips ───────────────────────── */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip {
+    font-family: inherit; font-size: 12px; font-weight: 500; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--border-strong); padding: 4px 10px; cursor: pointer;
+  }
+  .chip:hover { color: var(--fg); border-color: var(--fg); }
+  .chip.active { color: var(--bg); background: var(--fg); border-color: var(--fg); }
+
+  /* ── table ──────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { text-align: left; color: var(--dim); font-weight: 400; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 10px; border-bottom: 1px solid var(--border-strong); }
+  tbody td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--bg-2); }
+  tbody tr.expanded { background: var(--bg-2); }
+  tbody tr.hidden { display: none; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  td.model { font-weight: 500; }
+  .badge { font-size: 11px; padding: 1px 7px; border: 1px solid; }
+  .badge.ok { color: var(--green); border-color: rgba(48, 209, 88, 0.4); }
+  .badge.warn { color: var(--orange); border-color: rgba(255, 159, 10, 0.4); }
+  .badge.done { color: var(--muted); border-color: var(--border-strong); }
+  .badge.run { color: var(--blue); border-color: rgba(0, 122, 255, 0.4); }
+  .expand-row td { padding: 0; border-bottom: none; }
+  .detail { display: none; padding: 4px 10px 14px; font-size: 12px; color: var(--muted); line-height: 1.8; }
+  .detail.open { display: block; }
+  .detail .msg { display: flex; gap: 10px; }
+  .detail .msg b { color: var(--fg); font-weight: 500; width: 110px; flex-shrink: 0; }
+  .detail .msg .t { color: var(--dim); width: 130px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .detail .msg .role-in { color: var(--blue); }
+  .detail .msg .role-out { color: var(--green); }
+
+  /* ── budget ─────────────────────────────── */
+  .budget-card { border: 1px solid var(--border); padding: 16px; margin-bottom: 24px; }
+  .budget-card h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 14px; text-transform: lowercase; }
+  .gauge-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .gauge-label b { color: var(--fg); font-weight: 500; }
+  .gauge { height: 14px; background: var(--bg-2); border: 1px solid var(--border); position: relative; }
+  .gauge .fill { height: 100%; background: var(--green); width: 0%; transition: width 0.3s; }
+  .gauge .fill.warn { background: var(--orange); }
+  .gauge .fill.over { background: var(--red); }
+  .budget-rows { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .brow { border: 1px solid var(--border); padding: 10px 12px; }
+  .brow .k { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  .brow .v { font-size: 18px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .brow .v small { font-size: 12px; color: var(--muted); font-weight: 400; }
+
+  /* ── model split ────────────────────────── */
+  .split-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .split-row:last-child { border-bottom: none; }
+  .split-row .name { width: 190px; font-weight: 500; flex-shrink: 0; }
+  .split-row .track { flex: 1; height: 10px; background: var(--bg-2); }
+  .split-row .track i { display: block; height: 100%; background: var(--blue); }
+  .split-row .pct { width: 52px; text-align: right; font-variant-numeric: tabular-nums; color: var(--fg); }
+  .split-row .cost { width: 90px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ── footer ─────────────────────────────── */
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--dim); font-size: 11px; display: flex; justify-content: space-between; }
+
+  button:focus-visible, .chip:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+    .split-row .name { width: 130px; }
+    .status-line { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">~/tokentrack <span class="cursor"></span></div>
+    <div class="status-line"><span class="dot">●</span> opencode v0.14.3 · sync 2m ago · provider: opencode-zen</div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="active" data-panel="overview">usage</button>
+    <button data-panel="sessions">sessions</button>
+    <button data-panel="budget">budget</button>
+  </nav>
+
+  <!-- ══ OVERVIEW ══ -->
+  <section class="panel active" id="panel-overview">
+    <div class="stats">
+      <div class="stat"><div class="label">tokens (last 7d)</div><div class="value">8.42M</div><div class="delta up">▲ 12% vs prev week</div></div>
+      <div class="stat"><div class="label">cost (last 7d)</div><div class="value">$84.19</div><div class="delta up">▲ 9% vs prev week</div></div>
+      <div class="stat"><div class="label">sessions</div><div class="value">143</div><div class="delta down">▼ 4 vs prev week</div></div>
+      <div class="stat"><div class="label">budget used (aug)</div><div class="value">$84.19</div><div class="delta up" style="color:var(--orange);">▲ 56% of $150</div></div>
+    </div>
+
+    <div class="chart-card">
+      <h3>tokens per day — last 14 days</h3>
+      <div class="chart" id="barChart"></div>
+      <div class="legend"><span class="in">input</span><span class="out">output</span></div>
+    </div>
+
+    <div class="chart-card">
+      <h3>spend by model — aug 2026</h3>
+      <div id="modelSplit"></div>
+    </div>
+  </section>
+
+  <!-- ══ SESSIONS ══ -->
+  <section class="panel" id="panel-sessions">
+    <div class="chips" id="modelChips">
+      <button class="chip active" data-model="all">all</button>
+      <button class="chip" data-model="opus">opus-4.6</button>
+      <button class="chip" data-model="sonnet">sonnet-4.5</button>
+      <button class="chip" data-model="gpt">gpt-4o</button>
+      <button class="chip" data-model="deepseek">deepseek-v4</button>
+      <button class="chip" data-model="gemini">gemini-2.5</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>session</th><th>model</th><th>status</th><th class="num">in</th><th class="num">out</th><th class="num">total</th><th class="num">cost</th></tr>
+      </thead>
+      <tbody id="sessionRows"></tbody>
+    </table>
+  </section>
+
+  <!-- ══ BUDGET ══ -->
+  <section class="panel" id="panel-budget">
+    <div class="budget-card">
+      <h3>august budget — $150.00</h3>
+      <div class="gauge-label"><span>spent <b>$84.19</b></span><span>remaining <b>$65.81</b></span><span>projected <b style="color:var(--orange);">$138.40</b></span></div>
+      <div class="gauge"><div class="fill" id="gaugeFill"></div></div>
+      <div class="budget-rows">
+        <div class="brow"><div class="k">burn rate</div><div class="v">$2.91 <small>/day</small></div></div>
+        <div class="brow"><div class="k">days left</div><div class="v">23</div></div>
+        <div class="brow"><div class="k">projected overspend</div><div class="v" style="color:var(--green);">$0.00 <small>within budget</small></div></div>
+        <div class="brow"><div class="k">avg cost / session</div><div class="v">$0.59</div></div>
+      </div>
+    </div>
+
+    <div class="budget-card">
+      <h3>top spending sessions — aug 2026</h3>
+      <div id="topSessions"></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>tokentrack · token-tracker-for-opencode</span>
+    <span>local data · no telemetry</span>
+  </footer>
+</div>
+
+<script>
+/* ── data ─────────────────────────────────────────────── */
+const DAYS = [
+  { d: "jul 26", in: 182, out: 61 }, { d: "jul 27", in: 240, out: 88 },
+  { d: "jul 28", in: 310, out: 120 }, { d: "jul 29", in: 205, out: 74 },
+  { d: "jul 30", in: 160, out: 52 }, { d: "jul 31", in: 290, out: 101 },
+  { d: "aug 1", in: 350, out: 132 }, { d: "aug 2", in: 420, out: 168 },
+  { d: "aug 3", in: 265, out: 95 }, { d: "aug 4", in: 480, out: 201 },
+  { d: "aug 5", in: 390, out: 150 }, { d: "aug 6", in: 520, out: 210 },
+  { d: "aug 7", in: 445, out: 176 }, { d: "aug 8", in: 610, out: 240 },
+];
+
+const MODELS = [
+  { name: "claude-opus-4.6", pct: 34, cost: "$28.63" },
+  { name: "claude-sonnet-4.5", pct: 22, cost: "$18.52" },
+  { name: "gpt-4o", pct: 18, cost: "$15.15" },
+  { name: "deepseek-v4-flash", pct: 16, cost: "$13.47" },
+  { name: "gemini-2.5-pro", pct: 10, cost: "$8.42" },
+];
+
+const SESSIONS = [
+  { id: "sess_8f2a", model: "opus", modelName: "claude-opus-4.6", status: "done", in: 812400, out: 245100, cost: 9.84, msgs: [
+    { role: "user", text: "Refactor auth middleware to use JWT", in: "12,408", out: "0" },
+    { role: "assistant", text: "Plan: split verify(), attach claims, add refresh route", in: "0", out: "4,210" },
+    { role: "user", text: "Also add rate limiting per user", in: "3,105", out: "0" },
+    { role: "assistant", text: "Implemented JWT middleware + per-user rate limiter. 14 files changed.", in: "0", out: "8,994" },
+  ]},
+  { id: "sess_9b1c", model: "sonnet", modelName: "claude-sonnet-4.5", status: "run", in: 523700, out: 132800, cost: 3.71, msgs: [
+    { role: "user", text: "Fix flaky e2e test for checkout flow", in: "9,872", out: "0" },
+    { role: "assistant", text: "Reproduced: race between Stripe webhook and cart clear. Adding retry.", in: "0", out: "2,340" },
+  ]},
+  { id: "sess_7c3d", model: "gpt", modelName: "gpt-4o", status: "done", in: 312000, out: 98000, cost: 1.94, msgs: [] },
+  { id: "sess_4d5e", model: "deepseek", modelName: "deepseek-v4-flash", status: "done", in: 1240000, out: 310000, cost: 2.08, msgs: [
+    { role: "user", text: "Summarize this thread and draft the RFC outline", in: "41,220", out: "0" },
+    { role: "assistant", text: "RFC outline: motivation, goals, non-goals, API surface, migration.", in: "0", out: "9,118" },
+  ]},
+  { id: "sess_2e6f", model: "gemini", modelName: "gemini-2.5-pro", status: "warn", in: 685000, out: 202000, cost: 6.42, msgs: [] },
+  { id: "sess_5f7a", model: "opus", modelName: "claude-opus-4.6", status: "done", in: 441000, out: 118000, cost: 5.11, msgs: [] },
+  { id: "sess_6g8b", model: "gpt", modelName: "gpt-4o", status: "done", in: 198000, out: 61000, cost: 1.23, msgs: [] },
+  { id: "sess_3h9c", model: "sonnet", modelName: "claude-sonnet-4.5", status: "done", in: 367000, out: 99000, cost: 2.60, msgs: [] },
+  { id: "sess_0i1d", model: "deepseek", modelName: "deepseek-v4-flash", status: "warn", in: 890000, out: 240000, cost: 1.49, msgs: [] },
+  { id: "sess_1j2e", model: "opus", modelName: "claude-opus-4.6", status: "run", in: 276000, out: 74000, cost: 3.28, msgs: [] },
+];
+
+const TOP_SESSIONS = [
+  { id: "sess_8f2a", model: "claude-opus-4.6", cost: "$9.84", toks: "1.06M", day: "aug 8" },
+  { id: "sess_2e6f", model: "gemini-2.5-pro", cost: "$6.42", toks: "887K", day: "aug 6" },
+  { id: "sess_5f7a", model: "claude-opus-4.6", cost: "$5.11", toks: "559K", day: "aug 4" },
+  { id: "sess_9b1c", model: "claude-sonnet-4.5", cost: "$3.71", toks: "657K", day: "aug 7" },
+  { id: "sess_1j2e", model: "claude-opus-4.6", cost: "$3.28", toks: "350K", day: "aug 8" },
+];
+
+const BADGE = {
+  done: '<span class="badge done">done</span>',
+  run:  '<span class="badge run">running</span>',
+  warn: '<span class="badge warn">near-limit</span>',
+};
+
+/* ── bar chart ───────────────────────────────────────── */
+function renderBars() {
+  const max = Math.max(...DAYS.map(d => d.in + d.out));
+  const el = document.getElementById('barChart');
+  el.innerHTML = DAYS.map(d => {
+    const hIn = (d.in / max) * 100, hOut = (d.out / max) * 100;
+    return `<div class="bar-col" title="${d.d}: ${(d.in/1000).toFixed(0)}k in / ${(d.out/1000).toFixed(0)}k out">
+      <div class="bar in" style="height:${hIn}%"></div>
+      <div class="bar out" style="height:${hOut}%"></div>
+      <div class="day">${d.d}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── model split ─────────────────────────────────────── */
+function renderSplit() {
+  const el = document.getElementById('modelSplit');
+  el.innerHTML = MODELS.map(m => `
+    <div class="split-row">
+      <div class="name">${m.name}</div>
+      <div class="track"><i style="width:${m.pct}%"></i></div>
+      <div class="pct">${m.pct}%</div>
+      <div class="cost">${m.cost}</div>
+    </div>`).join('');
+}
+
+/* ── sessions table ─────────────────────────────────── */
+function fmt(n) { return n >= 1000000 ? (n/1000000).toFixed(2)+'M' : n >= 1000 ? (n/1000).toFixed(0)+'K' : n; }
+
+function renderSessions(filter) {
+  const tbody = document.getElementById('sessionRows');
+  tbody.innerHTML = SESSIONS.map(s => {
+    if (filter !== 'all' && s.model !== filter) return '';
+    const detail = s.msgs.length ? s.msgs.map(m => `
+      <div class="msg"><b>${m.role}</b><span class="t">${m.text}</span><span class="t ${m.role === 'user' ? 'role-in' : 'role-out'}">in ${m.in} · out ${m.out}</span></div>`).join('')
+      : `<div class="msg"><span class="t">— no message-level detail for this session</span></div>`;
+    return `
+      <tr data-id="${s.id}" class="sess-row">
+        <td>${s.id}</td>
+        <td class="model">${s.modelName}</td>
+        <td>${BADGE[s.status]}</td>
+        <td class="num">${fmt(s.in)}</td>
+        <td class="num">${fmt(s.out)}</td>
+        <td class="num">${fmt(s.in + s.out)}</td>
+        <td class="num">$${s.cost.toFixed(2)}</td>
+      </tr>
+      <tr class="expand-row" data-parent="${s.id}">
+        <td colspan="7"><div class="detail">${detail}</div></td>
+      </tr>`;
+  }).join('');
+}
+
+/* ── budget ──────────────────────────────────────────── */
+function renderBudget() {
+  const fill = document.getElementById('gaugeFill');
+  const pct = 84.19 / 150 * 100;
+  fill.style.width = pct + '%';
+  fill.classList.toggle('warn', pct > 60);
+  fill.classList.toggle('over', pct > 95);
+
+  const el = document.getElementById('topSessions');
+  el.innerHTML = TOP_SESSIONS.map(s => `
+    <div class="split-row">
+      <div class="name">${s.id}</div>
+      <div class="track" style="flex:2;"><span style="color:var(--muted);">${s.model}</span></div>
+      <div class="pct" style="width:70px;color:var(--muted);">${s.toks}</div>
+      <div class="pct" style="width:70px;color:var(--dim);">${s.day}</div>
+      <div class="cost" style="width:80px;">${s.cost}</div>
+    </div>`).join('');
+}
+
+/* ── tabs ────────────────────────────────────────────── */
+document.querySelectorAll('nav.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+  });
+});
+
+/* ── chips ───────────────────────────────────────────── */
+document.getElementById('modelChips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  renderSessions(chip.dataset.model);
+});
+
+/* ── expand rows ─────────────────────────────────────── */
+document.getElementById('sessionRows').addEventListener('click', e => {
+  const row = e.target.closest('.sess-row');
+  if (!row) return;
+  row.classList.toggle('expanded');
+  const detail = document.querySelector(`.expand-row[data-parent="${row.dataset.id}"] .detail`);
+  if (detail) detail.classList.toggle('open');
+});
+
+/* ── init ────────────────────────────────────────────── */
+renderBars();
+renderSplit();
+renderSessions('all');
+renderBudget();
+</script>
+</body>
+</html>

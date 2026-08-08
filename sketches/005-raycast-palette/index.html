@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tokentrack — usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #07080a;
+    --surface: #101111;
+    --surface-2: #1b1c1e;
+    --card: #18191a;
+    --white: #f9f9f9;
+    --gray: #cecece;
+    --silver: #c0c0c0;
+    --med: #9c9c9d;
+    --dim: #6a6b6c;
+    --border: #252829;
+    --border-soft: rgba(255,255,255,0.06);
+    --red: #FF6363;
+    --blue: #55b3ff;
+    --green: #5fc992;
+    --yellow: #ffbc33;
+    --red-glow: hsla(0, 100%, 69%, 0.15);
+    --blue-glow: hsla(202, 100%, 67%, 0.15);
+    --green-glow: hsla(151, 59%, 59%, 0.15);
+  }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "calt", "kern", "liga", "ss03";
+    background:
+      radial-gradient(1200px 600px at 70% -10%, rgba(215, 201, 175, 0.045), transparent 60%),
+      radial-gradient(900px 500px at 10% 110%, rgba(255, 99, 99, 0.04), transparent 55%),
+      var(--bg);
+    color: var(--white);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .roboto { font-variant-numeric: tabular-nums; }
+
+  /* ── macOS window frame ──────────────────── */
+  .frame { max-width: 1180px; margin: 0 auto; padding: 28px 22px 64px; }
+  .win-wrap { border-radius: 14px; overflow: hidden;
+    box-shadow:
+      rgba(255,255,255,0.06) 0px 0px 0px 1px,
+      rgba(0,0,0,0.55) 0px 24px 70px -20px,
+      rgba(0,0,0,0.35) 0px 8px 24px -12px;
+  }
+  .win-titlebar {
+    display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+    background: linear-gradient(#16181b, #101214);
+    border-bottom: 1px solid var(--border);
+  }
+  .tl-dots { display: flex; gap: 8px; margin-right: 6px; }
+  .tl-dots i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .tl-dots .r { background: #ff5f57; } .tl-dots .y { background: #febc2e; } .tl-dots .g { background: #28c840; }
+  .tl-title { flex: 1; text-align: center; font-size: 13px; font-weight: 500; color: var(--silver); letter-spacing: 0.2px; }
+  .tl-right { display: flex; align-items: center; gap: 8px; }
+  .kbd {
+    font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; color: var(--gray);
+    background: linear-gradient(180deg, #121212, #0d0d0d);
+    border-radius: 4px; padding: 2px 7px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      rgba(0,0,0,0.4) 0px 1.5px 0.5px 1.5px,
+      rgba(255,255,255,0.06) 0px 1px 0px 0px inset,
+      rgba(0,0,0,0.25) 0px -1px 0px 0px inset;
+  }
+  body { background: var(--bg); }
+  .win-body { background: var(--bg); padding: 24px 26px 30px; }
+
+  /* ── top strip ───────────────────────────── */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .topbar h1 { font-size: 24px; font-weight: 500; color: var(--white); letter-spacing: 0.2px; }
+  .topbar .who { font-size: 13px; color: var(--dim); margin-top: 2px; letter-spacing: 0.2px; }
+  .top-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    font-family: inherit; font-size: 13px; font-weight: 500; color: var(--white); letter-spacing: 0.2px;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: rgba(0,0,0,0.03) 0px 7px 3px, rgba(255,255,255,0.06) 0px 1px 0px 0px inset;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.7; }
+  .btn-pill {
+    border-radius: 999px; padding: 8px 18px; font-weight: 600;
+    background: rgba(255,255,255,0.85); color: #18191a; border: none;
+    box-shadow: rgba(255,255,255,0.25) 0px 0px 0px 1px, rgba(0,0,0,0.2) 0px -1px 0px 0px inset;
+  }
+  .btn-pill:hover { background: #ffffff; }
+
+  /* ── stat cards ──────────────────────────── */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .card {
+    background: var(--surface); border-radius: 14px; padding: 16px 18px;
+    border: 1px solid var(--border-soft);
+    box-shadow: rgb(27, 28, 30) 0px 0px 0px 1px, rgb(7, 8, 10) 0px 0px 0px 1px inset;
+    position: relative;
+  }
+  .card .clab { font-size: 11px; font-weight: 500; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; }
+  .card .cval { font-size: 24px; font-weight: 500; color: var(--white); margin-top: 8px; letter-spacing: 0.2px; font-variant-numeric: tabular-nums; }
+  .card .csub { font-size: 12px; margin-top: 5px; color: var(--dim); letter-spacing: 0.2px; }
+  .card .csub b { font-weight: 600; }
+  .card .csub .up { color: var(--yellow); }
+  .card .csub .ok { color: var(--green); }
+  .card .csub .bad { color: var(--red); }
+  .card .glow { position: absolute; right: 10px; top: 8px; width: 40px; height: 40px; border-radius: 50%; opacity: 0.5; }
+  .card .glow.red { background: var(--red-glow); }
+  .card .glow.blue { background: var(--blue-glow); }
+  .card .glow.green { background: var(--green-glow); }
+
+  /* ── main grid ───────────────────────────── */
+  .grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; margin-bottom: 18px; }
+  .pane {
+    background: var(--surface); border-radius: 14px; padding: 18px;
+    border: 1px solid var(--border-soft);
+    box-shadow: rgb(27, 28, 30) 0px 0px 0px 1px, rgb(7, 8, 10) 0px 0px 0px 1px inset;
+  }
+  .pane-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .pane-head h2 { font-size: 15px; font-weight: 500; color: var(--white); letter-spacing: 0.2px; }
+  .pane-head .hint { font-size: 11px; color: var(--dim); letter-spacing: 0.2px; display: flex; align-items: center; gap: 6px; }
+
+  .seg { display: flex; background: var(--bg); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
+  .seg button {
+    font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    padding: 5px 10px; border-radius: 6px; border: none; background: none; color: var(--dim); cursor: pointer;
+  }
+  .seg button:hover { color: var(--gray); }
+  .seg button.active { background: var(--surface-2); color: var(--white); box-shadow: 0 1px 2px rgba(0,0,0,0.5), rgba(255,255,255,0.08) 0px 0px 0px 1px inset; }
+
+  /* chart */
+  .chart-wrap { height: 200px; position: relative; }
+  .grid-lines { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .grid-lines i { border-top: 1px solid rgba(255,255,255,0.045); }
+  .chart-svg { position: relative; width: 100%; height: 100%; }
+  .chart-svg svg { width: 100%; height: 100%; display: block; }
+  .bar { cursor: pointer; opacity: 0.9; transition: opacity 0.15s; }
+  .bar:hover { opacity: 1; }
+
+  /* sessions list */
+  .srow { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--border-soft); cursor: pointer; }
+  .srow:last-child { border-bottom: none; }
+  .srow:hover { background: rgba(255,255,255,0.02); }
+  .srow .sid { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--dim); width: 82px; flex-shrink: 0; }
+  .srow .sname { flex: 1; font-size: 13px; font-weight: 500; color: var(--gray); letter-spacing: 0.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srow .stok { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .srow .scost { font-size: 13px; font-weight: 600; color: var(--white); font-variant-numeric: tabular-nums; min-width: 54px; text-align: right; }
+  .pill { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill.hot { color: var(--red); background: var(--red-glow); }
+  .pill.watch { color: var(--yellow); background: hsla(43, 100%, 60%, 0.12); }
+  .pill.done { color: var(--green); background: var(--green-glow); }
+  .pill.blue { color: var(--blue); background: var(--blue-glow); }
+
+  /* budget pane */
+  .brow { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+  .brow:last-child { border-bottom: none; }
+  .brow .k { color: var(--dim); letter-spacing: 0.2px; font-size: 12px; }
+  .brow .v { font-weight: 500; color: var(--gray); font-variant-numeric: tabular-nums; }
+  .brow .v.good { color: var(--green); }
+  .brow .v.warn { color: var(--yellow); }
+  .bprog { height: 6px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; margin: 10px 0 6px; }
+  .bprog i { display: block; height: 100%; border-radius: 999px; width: 56%; background: linear-gradient(90deg, #3d6b92, var(--blue)); }
+
+  /* footer */
+  .foot { display: flex; gap: 18px; margin-top: 16px; font-size: 11px; color: var(--dim); letter-spacing: 0.2px; }
+  .foot span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
+
+  /* ── command palette overlay ─────────────── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    display: none; align-items: flex-start; justify-content: center; padding-top: 15vh; z-index: 50;
+  }
+  .overlay.open { display: flex; }
+  .palette {
+    width: 580px; max-width: 92vw; background: var(--surface); border-radius: 14px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow:
+      rgba(0,0,0,0.5) 0px 0px 0px 2px,
+      rgba(255,255,255,0.19) 0px 0px 40px,
+      rgba(0,0,0,0.5) 0px 30px 80px -20px;
+    animation: palin 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  }
+  @keyframes palin { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
+  .pal-input { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .pal-input .ic { color: var(--med); font-size: 15px; }
+  .pal-input input {
+    flex: 1; background: none; border: none; outline: none; color: var(--white);
+    font-family: inherit; font-size: 15px; font-weight: 500; letter-spacing: 0.2px;
+  }
+  .pal-input input::placeholder { color: var(--dim); }
+  .pal-list { max-height: 380px; overflow-y: auto; padding: 6px; }
+  .pal-group { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); padding: 8px 10px 4px; }
+  .pal-item {
+    display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--gray); letter-spacing: 0.2px;
+  }
+  .pal-item .pi { width: 26px; height: 26px; border-radius: 7px; background: var(--surface-2); display: grid; place-items: center; font-size: 13px; flex-shrink: 0; border: 1px solid var(--border); }
+  .pal-item .pname { flex: 1; }
+  .pal-item .pk { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--dim); }
+  .pal-item.selected { background: var(--surface-2); box-shadow: rgba(255,255,255,0.06) 0px 0px 0px 1px inset; }
+  .pal-item.selected .pi { background: var(--blue); color: #08090a; }
+  .pal-foot { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--border); font-size: 11px; color: var(--dim); letter-spacing: 0.2px; }
+  .pal-foot b { color: var(--silver); font-weight: 600; }
+
+  @media (max-width: 1000px) { .cards { grid-template-columns: 1fr 1fr; } .grid { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } .frame { padding: 14px 10px 40px; } }
+</style>
+</head>
+<body>
+
+<!-- command palette overlay -->
+<div class="overlay" id="overlay">
+  <div class="palette" id="palette">
+    <div class="pal-input">
+      <span class="ic">⌕</span>
+      <input id="palInput" placeholder="Type a command — e.g. 'week'" autocomplete="off" spellcheck="false">
+      <span class="kbd" style="opacity:0.6;">esc</span>
+    </div>
+    <div class="pal-list" id="palList"></div>
+    <div class="pal-foot"><span><b>↵</b> run</span><span><b>↑↓</b> navigate</span><span><b>esc</b> close</span></div>
+  </div>
+</div>
+
+<div class="frame">
+  <div class="win-wrap">
+    <!-- macOS titlebar -->
+    <div class="win-titlebar">
+      <div class="tl-dots"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+      <div class="tl-title">tokentrack — usage monitor</div>
+      <div class="tl-right"><span class="kbd">⌘</span><span class="kbd">K</span></div>
+    </div>
+
+    <div class="win-body">
+      <div class="topbar">
+        <div>
+          <h1>Usage</h1>
+          <div class="who">opencode-zen · default provider · synced 2 min ago</div>
+        </div>
+        <div class="top-actions">
+          <button class="btn" id="openPaletteBtn">⌕ <span style="margin-left:4px;">Search</span><span class="kbd" style="margin-left:10px;">⌘K</span></button>
+          <button class="btn btn-pill" id="alertBtn">Set alert</button>
+        </div>
+      </div>
+
+      <!-- stats -->
+      <div class="cards">
+        <div class="card"><span class="glow blue"></span><div class="clab">Tokens · 7d</div><div class="cval">8,420,300</div><div class="csub"><b class="up">↑ 12%</b> vs last week</div></div>
+        <div class="card"><span class="glow red"></span><div class="clab">Spend · 7d</div><div class="cval">$84.19</div><div class="csub"><b class="up">↑ 9%</b> vs last week</div></div>
+        <div class="card"><span class="glow green"></span><div class="clab">Events</div><div class="cval">143</div><div class="csub"><b class="ok">●</b> 5 flagged high-spend</div></div>
+        <div class="card"><div class="clab">Budget used</div><div class="cval">56%</div><div class="csub"><b class="ok">on track</b> · $84.19 / $150</div></div>
+      </div>
+
+      <!-- main grid -->
+      <div class="grid">
+        <!-- chart -->
+        <div class="pane">
+          <div class="pane-head">
+            <h2>Token volume</h2>
+            <div class="hint"><span class="seg" id="rangeSeg">
+              <button data-r="7">7D</button><button data-r="14" class="active">14D</button><button data-r="30">30D</button>
+            </span></div>
+          </div>
+          <div class="chart-wrap">
+            <div class="grid-lines"><i></i><i></i><i></i><i></i></div>
+            <div class="chart-svg" id="chart"></div>
+          </div>
+        </div>
+
+        <!-- budget -->
+        <div class="pane">
+          <div class="pane-head">
+            <h2>Budget — August</h2>
+            <div class="hint">$150.00 cap</div>
+          </div>
+          <div class="bprog"><i id="budgetFill"></i></div>
+          <div class="brow"><span class="k">Spent</span><span class="v">$84.19</span></div>
+          <div class="brow"><span class="k">Burn rate</span><span class="v">$2.91 / day</span></div>
+          <div class="brow"><span class="k">Projected</span><span class="v warn">$138.40</span></div>
+          <div class="brow"><span class="k">Headroom</span><span class="v good">+$11.60 under</span></div>
+          <div class="brow"><span class="k">Days left</span><span class="v">23</span></div>
+          <div style="margin-top:12px;display:flex;gap:8px;">
+            <button class="btn" style="flex:1;font-size:12px;">Edit cap</button>
+            <button class="btn" style="flex:1;font-size:12px;">Forecast</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- sessions -->
+      <div class="pane">
+        <div class="pane-head">
+          <h2>Recent sessions</h2>
+          <div class="hint"><span class="kbd">↵</span> open detail</div>
+        </div>
+        <div id="sessions"></div>
+      </div>
+
+      <div class="foot">
+        <span><span class="dot"></span> live sync</span>
+        <span>tokentrack · token-tracker-for-opencode</span>
+        <span class="mono">local data only</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── data ─────────────────────────────────────────────── */
+const DAYS = {
+  7:  [ {d:"Aug 2",in:420,out:168}, {d:"Aug 3",in:265,out:95}, {d:"Aug 4",in:480,out:201}, {d:"Aug 5",in:390,out:150}, {d:"Aug 6",in:520,out:210}, {d:"Aug 7",in:445,out:176}, {d:"Aug 8",in:610,out:240} ],
+  14: [ {d:"Jul 26",in:182,out:61}, {d:"Jul 27",in:240,out:88}, {d:"Jul 28",in:310,out:120}, {d:"Jul 29",in:205,out:74}, {d:"Jul 30",in:160,out:52}, {d:"Jul 31",in:290,out:101}, {d:"Aug 1",in:350,out:132}, {d:"Aug 2",in:420,out:168}, {d:"Aug 3",in:265,out:95}, {d:"Aug 4",in:480,out:201}, {d:"Aug 5",in:390,out:150}, {d:"Aug 6",in:520,out:210}, {d:"Aug 7",in:445,out:176}, {d:"Aug 8",in:610,out:240} ],
+  30: [ {d:"Jul 10",in:150,out:48}, {d:"Jul 12",in:220,out:71}, {d:"Jul 14",in:180,out:60}, {d:"Jul 16",in:310,out:99}, {d:"Jul 18",in:240,out:82}, {d:"Jul 20",in:365,out:128}, {d:"Jul 22",in:280,out:95}, {d:"Jul 24",in:420,out:152}, {d:"Jul 26",in:182,out:61}, {d:"Jul 28",in:310,out:120}, {d:"Jul 30",in:160,out:52}, {d:"Jul 31",in:290,out:101}, {d:"Aug 1",in:350,out:132}, {d:"Aug 2",in:420,out:168}, {d:"Aug 3",in:265,out:95}, {d:"Aug 4",in:480,out:201}, {d:"Aug 5",in:390,out:150}, {d:"Aug 6",in:520,out:210}, {d:"Aug 7",in:445,out:176}, {d:"Aug 8",in:610,out:240} ],
+};
+
+const SESSIONS = [
+  { id: "sess_8f2a", name: "Refactor auth middleware to JWT", tokens: "1.06M", cost: "$9.84", flag: "hot" },
+  { id: "sess_1j2e", name: "Refactor queue worker retries", tokens: "350K", cost: "$3.28", flag: "hot" },
+  { id: "sess_2e6f", name: "Draft RFC: unified telemetry pipeline", tokens: "887K", cost: "$6.42", flag: "watch" },
+  { id: "sess_9b1c", name: "Debug flaky e2e checkout flow", tokens: "657K", cost: "$3.71", flag: "watch" },
+  { id: "sess_5f7a", name: "Migrate billing service to v2 API", tokens: "559K", cost: "$5.11", flag: "done" },
+  { id: "sess_4d5e", name: "Summarize thread → RFC outline", tokens: "1.55M", cost: "$2.08", flag: "done" },
+  { id: "sess_6g8b", name: "Docs: deployment guide", tokens: "259K", cost: "$1.23", flag: "done" },
+  { id: "sess_3h9c", name: "API client codegen types", tokens: "466K", cost: "$2.60", flag: "blue" },
+  { id: "sess_0i1d", name: "CI matrix rework", tokens: "1.13M", cost: "$1.49", flag: "blue" },
+  { id: "sess_7k3f", name: "Upgrade ORM to v6", tokens: "408K", cost: "$1.51", flag: "blue" },
+];
+
+const FLAG_PILL = { hot: '<span class="pill hot">high</span>', watch: '<span class="pill watch">watch</span>', done: '<span class="pill done">done</span>', blue: '<span class="pill blue">info</span>' };
+
+/* ── chart ───────────────────────────────────────────── */
+function renderChart(range) {
+  const rows = DAYS[range];
+  const max = Math.max(...rows.map(r => r.in + r.out));
+  const W = 660, H = 195, PAD = 8, GAP = range === 30 ? 14 : 20;
+  const bw = Math.min(28, (W - PAD * 2 - GAP * (rows.length - 1)) / rows.length);
+  let bars = '';
+  rows.forEach((r, i) => {
+    const hIn = (r.in / max) * (H - 8), hOut = (r.out / max) * (H - 8);
+    const x = PAD + i * (bw + GAP);
+    bars += `<rect class="bar" x="${x}" y="${H - hIn}" width="${bw}" height="${hIn}" rx="3" fill="#55b3ff">
+        <title>${r.d}: ${r.in/1000}K in · ${(r.in+r.out)/1000}K total</title></rect>
+      <rect class="bar" x="${x}" y="${H - hOut - hIn}" width="${bw}" height="${hOut}" rx="3" fill="#5fc992">
+        <title>${r.d}: ${r.out/1000}K out</title></rect>`;
+  });
+  document.getElementById('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>`;
+  document.querySelectorAll('#rangeSeg button').forEach(b => b.classList.toggle('active', +b.dataset.r === range));
+}
+
+/* ── sessions ────────────────────────────────────────── */
+function renderSessions() {
+  document.getElementById('sessions').innerHTML = SESSIONS.map(s => `
+    <div class="srow">
+      <span class="sid">${s.id}</span>
+      <span class="sname">${s.name}</span>
+      ${FLAG_PILL[s.flag]}
+      <span class="stok">${s.tokens} tok</span>
+      <span class="scost">${s.cost}</span>
+    </div>`).join('');
+}
+
+/* ── command palette ─────────────────────────────────── */
+const COMMANDS = [
+  { group: "Views", icon: "▤", name: "Overview", run: () => toast("Switched to Overview") },
+  { group: "Views", icon: "☰", name: "Sessions", run: () => toast("Switched to Sessions") },
+  { group: "Views", icon: "◈", name: "Budget & Alerts", run: () => toast("Switched to Budget") },
+  { group: "Views", icon: "▥", name: "Models", run: () => toast("Switched to Models") },
+  { group: "Range", icon: "◔", name: "Show last 7 days", run: () => { renderChart(7); toast("Range: 7 days"); } },
+  { group: "Range", icon: "◔", name: "Show last 14 days", run: () => { renderChart(14); toast("Range: 14 days"); } },
+  { group: "Range", icon: "◔", name: "Show last 30 days", run: () => { renderChart(30); toast("Range: 30 days"); } },
+  { group: "Action", icon: "⇩", name: "Export usage as CSV", run: () => toast("Exporting usage.csv …") },
+  { group: "Action", icon: "✎", name: "Set budget alert", run: () => toast("Alert: $25/day threshold set") },
+  { group: "Action", icon: "◉", name: "Sync now", run: () => toast("Synced — 2 new events") },
+];
+
+let palOpen = false, palIdx = 0, palResults = [];
+
+function openPalette() {
+  palOpen = true; palIdx = 0;
+  document.getElementById('overlay').classList.add('open');
+  renderPalette('');
+  setTimeout(() => document.getElementById('palInput').focus(), 30);
+}
+function closePalette() { palOpen = false; document.getElementById('overlay').classList.remove('open'); }
+
+function renderPalette(q) {
+  const term = q.toLowerCase().trim();
+  palResults = COMMANDS.filter(c => !term || (c.name + ' ' + c.group).toLowerCase().includes(term));
+  const groups = [...new Set(palResults.map(c => c.group))];
+  const el = document.getElementById('palList');
+  el.innerHTML = groups.map(g => {
+    const items = palResults.filter(c => c.group === g).map((c, i) => {
+      const gi = palResults.indexOf(c);
+      return `<div class="pal-item ${gi === palIdx ? 'selected' : ''}" data-idx="${gi}">
+        <span class="pi">${c.icon}</span><span class="pname">${c.name}</span><span class="pk">↵</span></div>`;
+    }).join('');
+    return `<div class="pal-group">${g}</div>${items}`;
+  }).join('');
+}
+
+function runPalette() {
+  if (!palResults.length) return;
+  const sel = palResults[Math.min(palIdx, palResults.length - 1)];
+  closePalette();
+  setTimeout(() => sel.run && sel.run(), 120);
+}
+
+document.getElementById('overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closePalette(); });
+document.getElementById('palList').addEventListener('click', e => {
+  const item = e.target.closest('.pal-item'); if (!item) return;
+  palIdx = +item.dataset.idx; runPalette();
+});
+document.getElementById('palInput').addEventListener('input', e => { palIdx = 0; renderPalette(e.target.value); });
+document.getElementById('palInput').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); palIdx = Math.min(palIdx + 1, palResults.length - 1); renderPalette(document.getElementById('palInput').value); }
+  if (e.key === 'ArrowUp') { e.preventDefault(); palIdx = Math.max(palIdx - 1, 0); renderPalette(document.getElementById('palInput').value); }
+  if (e.key === 'Enter') { e.preventDefault(); runPalette(); }
+  if (e.key === 'Escape') closePalette();
+});
+
+document.getElementById('openPaletteBtn').addEventListener('click', openPalette);
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); palOpen ? closePalette() : openPalette(); }
+});
+
+/* ── range seg ───────────────────────────────────────── */
+document.getElementById('rangeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  renderChart(+b.dataset.r);
+});
+
+/* ── toast ───────────────────────────────────────────── */
+const TOAST = document.createElement('div');
+TOAST.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1b1c1e;border:1px solid rgba(255,255,255,0.12);color:#f9f9f9;font-size:13px;padding:9px 16px;border-radius:999px;z-index:99;box-shadow:rgba(255,255,255,0.1) 0px 1px 0px inset,rgba(0,0,0,0.5) 0px 12px 30px;letter-spacing:0.2px;opacity:0;transition:opacity 0.2s;pointer-events:none;';
+document.body.appendChild(TOAST);
+let toastTimer;
+function toast(msg) {
+  TOAST.textContent = msg;
+  TOAST.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => TOAST.style.opacity = 0, 1800);
+}
+
+/* ── init ─────────────────────────────────────────────── */
+renderChart(14);
+renderSessions();
+document.getElementById('budgetFill').style.width = '56%';
+</script>
+</body>
+</html>
