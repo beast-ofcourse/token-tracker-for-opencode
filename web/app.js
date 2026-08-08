@@ -1,111 +1,101 @@
-/* OpenCode Token Tracker — dashboard data layer (T-012).
- *
- * Everything dynamic on top of the T-011 shell: the range selector, the
- * hand-rolled SVG stacked token chart, the per-model panel, and the
- * auto-refresh loop with live/offline sync status. No chart library, no
- * external requests — only the tracker's own API:
- *
- *   GET /api/config                       -> { ..., refresh_seconds }
- *   GET /api/breakdown?group_by=day|week|month|model&from=<ms>&to=<ms>
- *                                         -> { rows: [{key, label, sessions,
- *                                             tokens: {input, output, ...}, cost}] }
- *
- * The chart plots input + output per bucket (the two series the legend
- * names); the model panel uses the same definition so both panels always
- * reconcile. Rows arrive sorted by cost desc from the API, but a time
- * series must be chronological, so the chart re-sorts by key (all bucket
- * keys — YYYY-MM-DD, YYYY-Www, YYYY-MM — sort lexicographically in time
- * order).
- */
+/* ============================================================
+   OpenCode Token Tracker — Dashboard v2
+
+   Chart.js-powered analytics dashboard. Fetches from the
+   tracker API, renders stat cards and five charts, auto-refreshes,
+   handles dark/light themes, and degrades gracefully on error.
+   ============================================================ */
 (function () {
   'use strict';
 
   /* ── DOM refs ──────────────────────────────────────────── */
-  var chartEl = document.getElementById('chart');
-  var chartEmpty = document.getElementById('chartEmpty');
-  var modelSplit = document.getElementById('modelSplit');
-  var modelEmpty = document.getElementById('modelEmpty');
-  var errorBanner = document.getElementById('errorBanner');
-  var errorMsg = document.getElementById('errorBannerMsg');
-  var syncDot = document.getElementById('syncDot');
-  var syncText = document.getElementById('syncText');
-  var rangeTabs = document.getElementById('rangeTabs');
+  var $ = function (id) { return document.getElementById(id); };
+  var syncDot = $('syncDot');
+  var syncText = $('syncText');
+  var errorBanner = $('errorBanner');
+  var errorMsg = $('errorBannerMsg');
+  var rangeTabs = $('rangeTabs');
 
-  /* ── state ─────────────────────────────────────────────── */
-  var RANGES = {
-    daily:   { groupBy: 'day',   days: 29 },   // now - 29 days
-    weekly:  { groupBy: 'week',  weeks: 11 },  // now - 11 weeks
-    monthly: { groupBy: 'month', months: 11 }, // now - 11 months
-    all:     { groupBy: 'month', allTime: true }
-  };
-  var currentRange = 'all';
-  var refreshSeconds = 30;
-  var timer = null;
-  var inFlight = false;
-  var seq = 0;          // guards against out-of-order responses
-  var lastSuccessAt = null;
-  var lastData = null;  // { chartRows, modelRows } — kept across failures
+  /* stat cards */
+  var statTokens = $('statTokens');
+  var statTokensSub = $('statTokensSub');
+  var statCost = $('statCost');
+  var statCostSub = $('statCostSub');
+  var statSessions = $('statSessions');
+  var statSessionsSub = $('statSessionsSub');
+  var statBudget = $('statBudget');
+  var statBudgetSub = $('statBudgetSub');
+  var budgetFill = $('budgetFill');
+  var statBudgetCard = statBudget.closest('.stat-card');
 
-  /* ── tiny style block for data-layer-only elements ────────
-     (.model-pct and SVG text classes have no home in style.css,
-     which is frozen; injecting keeps the data layer self-contained.) */
-  var appStyle = document.createElement('style');
-  appStyle.textContent = [
-    '.model-pct { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; white-space: nowrap; }',
-    '.chart .tick-label { font-family: var(--font-mono); font-size: 10.5px; fill: var(--text-3); }',
-    '.chart .x-label { font-size: 11px; fill: var(--text-3); }'
-  ].join('\n');
-  document.head.appendChild(appStyle);
-
-  /* ── helpers ───────────────────────────────────────────── */
-  function pad2(n) { return n < 10 ? '0' + n : String(n); }
-
-  function timeStr(d) {
-    return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
-  }
-
+  /* ── Chart color palette ───────────────────────────────── */
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
-  /* 1.2M / 585K / 1234 — one decimal, dropped when .0. */
+  var COLORS = {
+    input:     { bg: 'rgba(34,197,94,0.7)',  border: '#22c55e' },  /* green */
+    output:    { bg: 'rgba(168,85,247,0.7)', border: '#a855f7' },  /* purple */
+    reasoning: { bg: 'rgba(59,130,246,0.7)', border: '#3b82f6' },  /* blue */
+    cacheRead: { bg: 'rgba(6,182,212,0.7)',  border: '#06b6d4' },  /* cyan */
+    cacheWrite:{ bg: 'rgba(249,115,22,0.7)', border: '#f97316' },  /* coral */
+  };
+
+  var MODEL_COLORS = [
+    '#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#06b6d4',
+    '#f97316', '#ec4899', '#8b5cf6', '#14b8a6', '#eab308'
+  ];
+
+  var TOKEN_LABELS = {
+    input: 'Input', output: 'Output', reasoning: 'Reasoning',
+    cache_read: 'Cache Read', cache_write: 'Cache Write'
+  };
+
+  var TOKEN_KEYS = ['input', 'output', 'reasoning', 'cache_read', 'cache_write'];
+
+  /* ── State ─────────────────────────────────────────────── */
+  var RANGES = {
+    daily:   { groupBy: 'day',   days: 29 },
+    weekly:  { groupBy: 'week',  weeks: 11 },
+    monthly: { groupBy: 'month', months: 11 },
+    all:     { groupBy: 'month', allTime: true }
+  };
+  var currentRange = 'monthly';
+  var refreshSeconds = 30;
+  var timer = null;
+  var inFlight = false;
+  var seq = 0;
+  var lastSuccessAt = null;
+  var lastSummary = null;
+
+  /* Chart instances — destroyed and re-created on theme change */
+  var charts = {};
+
+  /* ── Helpers ───────────────────────────────────────────── */
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+  function timeStr(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()); }
+
   function formatTokens(n) {
     n = Math.max(0, Math.round(n || 0));
-    if (n >= 1000000) return trimOne(n / 1000000) + 'M';
-    if (n >= 10000) return trimOne(n / 1000) + 'K';
-    return String(n);
+    if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e4) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    return n.toLocaleString('en-US');
   }
 
-  function trimOne(v) {
-    var s = v.toFixed(1);
-    return s.slice(-2) === '.0' ? s.slice(0, -2) : s;
+  function formatCost(x) {
+    if (x === 0) return '$0.00';
+    if (x < 0.01) return '<$0.01';
+    return '$' + x.toFixed(2);
   }
 
-  /* Exact counts for tooltips: 1,234,567. */
-  function exact(n) {
-    return Math.round(n || 0).toLocaleString('en-US');
-  }
-
-  /* Smallest "nice" axis ceiling: 1 / 2 / 5 × 10^k. */
-  function niceCeil(v) {
-    if (v <= 0) return 1;
-    var mag = Math.pow(10, Math.floor(Math.log10(v)));
-    var norm = v / mag;
-    return (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
-  }
-
-  function bucketTokens(row) {
-    return (row.tokens.input || 0) + (row.tokens.output || 0);
-  }
-
-  function byKey(a, b) { return a.key < b.key ? -1 : a.key > b.key ? 1 : 0; }
+  function formatPct(x) { return x.toFixed(1) + '%'; }
 
   function rangeBounds(range) {
     var now = new Date();
     var from;
-    if (range.allTime) {
-      from = 0;
-    } else {
+    if (range.allTime) { from = 0; }
+    else {
       var d = new Date(now);
       if (range.days) d.setDate(d.getDate() - range.days);
       else if (range.weeks) d.setDate(d.getDate() - range.weeks * 7);
@@ -121,222 +111,257 @@
         var err = new Error('HTTP ' + resp.status + ' ' + url);
         err.status = resp.status;
         return resp.json().catch(function () { return {}; }).then(function (body) {
-          err.body = body;
-          throw err;
+          err.body = body; throw err;
         });
       }
       return resp.json();
     });
   }
 
-  /* ── sync status ───────────────────────────────────────── */
+  /* ── Sync status ───────────────────────────────────────── */
   function setLive() {
-    syncDot.classList.add('live');
-    syncDot.classList.remove('off');
-    syncText.textContent = 'Live · updated ' + timeStr(lastSuccessAt);
+    syncDot.className = 'sync-dot live';
+    syncText.textContent = 'Live · ' + timeStr(lastSuccessAt);
   }
-
   function setOffline() {
-    syncDot.classList.remove('live');
-    syncDot.classList.add('off');
+    syncDot.className = 'sync-dot off';
     syncText.textContent = lastSuccessAt
-      ? 'Offline · last update ' + timeStr(lastSuccessAt)
-      : 'Offline · no data yet';
+      ? 'Offline · ' + timeStr(lastSuccessAt) : 'Offline';
+  }
+  function showError(msg) { errorMsg.textContent = msg; errorBanner.classList.add('show'); }
+  function hideError() { errorBanner.classList.remove('show'); }
+
+  /* ── Chart.js global defaults ──────────────────────────── */
+  function applyChartDefaults() {
+    var text2 = cssVar('--text-2') || '#a0a0ab';
+    var text3 = cssVar('--text-3') || '#63636e';
+    var border = cssVar('--border') || 'rgba(255,255,255,0.06)';
+    Chart.defaults.font.family = "'Rubik', system-ui, sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = text3;
+    Chart.defaults.plugins.legend.display = false;
+    Chart.defaults.plugins.tooltip.backgroundColor = cssVar('--surface-2') || '#1e1e23';
+    Chart.defaults.plugins.tooltip.titleColor = cssVar('--text') || '#f0f0f2';
+    Chart.defaults.plugins.tooltip.bodyColor = text2;
+    Chart.defaults.plugins.tooltip.borderColor = cssVar('--border-strong') || 'rgba(255,255,255,0.12)';
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.tooltip.displayColors = true;
+    Chart.defaults.plugins.tooltip.boxPadding = 4;
+    Chart.defaults.scale.grid = { color: border, drawBorder: false };
+    Chart.defaults.scale.ticks = { color: text3, font: { size: 10 } };
   }
 
-  function showError(msg) {
-    errorMsg.textContent = msg;
-    errorBanner.classList.add('show');
+  /* ── Destroy all charts (for theme re-render) ──────────── */
+  function destroyCharts() {
+    Object.keys(charts).forEach(function (k) {
+      if (charts[k]) { charts[k].destroy(); charts[k] = null; }
+    });
   }
 
-  function hideError() {
-    errorBanner.classList.remove('show');
-  }
+  /* ── Render: stat cards ────────────────────────────────── */
+  function renderStats(summary) {
+    if (!summary) return;
+    var t = summary.totals;
+    var b = summary.budget;
 
-  /* ── token usage chart (hand-rolled SVG) ───────────────── */
-  function svgEl(tag, attrs) {
-    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (var k in attrs) {
-      if (Object.prototype.hasOwnProperty.call(attrs, k)) el.setAttribute(k, attrs[k]);
+    statTokens.textContent = formatTokens(t.tokens.input + t.tokens.output + t.tokens.reasoning + t.tokens.cache_read + t.tokens.cache_write);
+    statTokensSub.textContent = 'input ' + formatTokens(t.tokens.input) + ' · output ' + formatTokens(t.tokens.output);
+
+    var totalCost = t.cost || 0;
+    statCost.textContent = formatCost(totalCost);
+    statCostSub.textContent = totalCost === 0 && t.tokens.input > 0 ? 'All free models' : (t.sessions > 0 ? formatCost(totalCost / t.sessions) + ' avg/session' : '');
+
+    statSessions.textContent = t.sessions.toLocaleString('en-US');
+    statSessionsSub.textContent = t.unpriced_sessions > 0 ? t.unpriced_sessions + ' unpriced' : '';
+
+    if (b.monthly > 0) {
+      var pct = Math.min(b.percent, 100);
+      statBudget.textContent = formatCost(b.spent) + ' / ' + formatCost(b.monthly);
+      budgetFill.style.width = pct + '%';
+      statBudgetSub.textContent = formatCost(b.remaining) + ' left · projected ' + formatCost(b.projected);
+      statBudgetCard.className = 'stat-card stat-card--budget' + (b.alert === 'warn' ? ' warn' : b.alert === 'exceeded' ? ' exceeded' : '');
+    } else {
+      statBudget.textContent = 'No budget';
+      budgetFill.style.width = '0%';
+      statBudgetSub.textContent = 'Set budget.monthly in config';
+      statBudgetCard.className = 'stat-card stat-card--budget';
     }
-    return el;
   }
 
-  function renderChart(rows) {
-    var totals = rows.map(bucketTokens);
-    var max = totals.length ? Math.max.apply(null, totals) : 0;
-    if (!rows.length || max <= 0) {
-      chartEl.textContent = '';
-      chartEmpty.style.display = '';
-      return;
-    }
-    chartEmpty.style.display = 'none';
+  /* ── Render: token usage over time ─────────────────────── */
+  function renderTokenChart(rows) {
+    var canvas = $('chartTokenUsage');
+    var empty = $('chartEmpty');
+    if (!rows || !rows.length) { empty.style.display = 'flex'; if (charts.token) { charts.token.destroy(); charts.token = null; } return; }
+    empty.style.display = 'none';
 
-    var W = chartEl.clientWidth || 800;
-    var H = chartEl.clientHeight || 300;
-    var padL = 46, padR = 8, padT = 10, padB = 24;
-    var plotW = Math.max(10, W - padL - padR);
-    var plotH = Math.max(10, H - padT - padB);
-    var yMax = niceCeil(max);
-    var y = function (v) { return padT + plotH - (v / yMax) * plotH; };
-    var baseline = y(0);
-
-    var n = rows.length;
-    var slot = plotW / n;
-    var barW = Math.min(slot * 0.62, 36);
-
-    var inColor = cssVar('--accent') || '#c8f04e';
-    var outColor = cssVar('--series-2') || '#8b7cf6';
-
-    var inSum = 0, outSum = 0;
-    rows.forEach(function (r) { inSum += r.tokens.input || 0; outSum += r.tokens.output || 0; });
-
-    var svg = svgEl('svg', {
-      viewBox: '0 0 ' + W + ' ' + H,
-      role: 'img',
-      'aria-label': 'Token usage, ' + n + ' buckets — input ' +
-        formatTokens(inSum) + ', output ' + formatTokens(outSum)
+    var labels = rows.map(function (r) { return r.label; });
+    var datasets = TOKEN_KEYS.map(function (key, i) {
+      var c = COLORS[key === 'cache_read' ? 'cacheRead' : key === 'cache_write' ? 'cacheWrite' : key];
+      return {
+        label: TOKEN_LABELS[key],
+        data: rows.map(function (r) { return r.tokens[key] || 0; }),
+        backgroundColor: c.bg,
+        borderColor: c.border,
+        borderWidth: 1,
+        borderRadius: 2,
+        borderSkipped: false,
+      };
     });
 
-    /* gridlines + y-axis labels at 0 / 50% / max */
-    [0, 0.5, 1].forEach(function (f) {
-      var v = yMax * f;
-      var gy = y(v);
-      svg.appendChild(svgEl('line', {
-        x1: padL, y1: gy, x2: W - padR, y2: gy,
-        stroke: cssVar('--border') || 'rgba(255,255,255,0.08)', 'stroke-width': 1
-      }));
-      var label = svgEl('text', {
-        x: padL - 6, y: gy + 3.5, 'text-anchor': 'end', 'class': 'tick-label'
-      });
-      label.textContent = formatTokens(v);
-      svg.appendChild(label);
-    });
-
-    /* bars — input (accent) below, output (series-2) stacked above */
-    rows.forEach(function (row, i) {
-      var inT = row.tokens.input || 0;
-      var outT = row.tokens.output || 0;
-      var total = inT + outT;
-      var x = padL + i * slot + (slot - barW) / 2;
-
-      if (inT > 0) {
-        var inRect = svgEl('rect', {
-          x: x, y: y(inT), width: barW, height: Math.max(1, baseline - y(inT)),
-          fill: inColor, rx: 2
-        });
-        var inTitle = svgEl('title');
-        inTitle.textContent = row.label + ' — input ' + exact(inT);
-        inRect.appendChild(inTitle);
-        svg.appendChild(inRect);
-      }
-      if (outT > 0) {
-        var outRect = svgEl('rect', {
-          x: x, y: y(total), width: barW, height: Math.max(1, y(inT) - y(total)),
-          fill: outColor, rx: 2
-        });
-        var outTitle = svgEl('title');
-        outTitle.textContent = row.label + ' — output ' + exact(outT);
-        outRect.appendChild(outTitle);
-        svg.appendChild(outRect);
-      }
-      /* transparent hit rect spanning the whole bar: one tooltip per bucket */
-      var hit = svgEl('rect', {
-        x: x, y: y(total), width: barW, height: Math.max(1, baseline - y(total)),
-        fill: 'transparent'
-      });
-      var hitTitle = svgEl('title');
-      hitTitle.textContent = row.label + ' — input ' + exact(inT) +
-        ' · output ' + exact(outT) + ' · total ' + exact(total);
-      hit.appendChild(hitTitle);
-      svg.appendChild(hit);
-
-      if (shouldLabel(i, n, slot)) {
-        var xl = svgEl('text', {
-          x: x + barW / 2, y: H - 8, 'text-anchor': 'middle', 'class': 'x-label'
-        });
-        xl.textContent = row.label;
-        svg.appendChild(xl);
+    if (charts.token) charts.token.destroy();
+    charts.token = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 20 } },
+          y: { stacked: true, beginAtZero: true, ticks: { callback: function (v) { return formatTokens(v); } } }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function (ctx) { return ctx.dataset.label + ': ' + formatTokens(ctx.raw); },
+              footer: function (items) { var sum = items.reduce(function (s, i) { return s + i.raw; }, 0); return 'Total: ' + formatTokens(sum); }
+            }
+          }
+        }
       }
     });
 
-    chartEl.textContent = '';
-    chartEl.appendChild(svg);
+    /* build legend */
+    var legendEl = $('chartLegend');
+    legendEl.innerHTML = datasets.map(function (d) {
+      return '<span class="legend-item"><span class="legend-dot" style="background:' + d.borderColor + '"></span>' + d.label + '</span>';
+    }).join('');
   }
 
-  /* Label every ceil(n/8)-th bucket; also the last one when it clears the
-     previous label by more than one label width (~34px). */
-  function shouldLabel(i, n, slot) {
-    var step = Math.max(1, Math.ceil(n / 8));
-    if (i % step === 0) return true;
-    if (i === n - 1) {
-      var lastLabeled = Math.floor((n - 1) / step) * step;
-      return (i - lastLabeled) * slot > 34;
-    }
-    return false;
-  }
+  /* ── Render: token composition doughnut ────────────────── */
+  function renderComposition(summary) {
+    var canvas = $('chartComposition');
+    var empty = $('compEmpty');
+    if (!summary) { empty.style.display = 'flex'; if (charts.comp) { charts.comp.destroy(); charts.comp = null; } return; }
+    var t = summary.totals.tokens;
+    var total = TOKEN_KEYS.reduce(function (s, k) { return s + (t[k] || 0); }, 0);
+    if (total <= 0) { empty.style.display = 'flex'; if (charts.comp) { charts.comp.destroy(); charts.comp = null; } return; }
+    empty.style.display = 'none';
 
-  /* ── usage by model ────────────────────────────────────── */
-  function renderModels(rows) {
-    var withTokens = rows.filter(function (r) { return bucketTokens(r) > 0; });
-    var grand = withTokens.reduce(function (sum, r) { return sum + bucketTokens(r); }, 0);
-    if (!withTokens.length || grand <= 0) {
-      modelSplit.textContent = '';
-      modelEmpty.style.display = '';
-      return;
-    }
-    modelEmpty.style.display = 'none';
+    var values = TOKEN_KEYS.map(function (k) { return t[k] || 0; });
+    var colors = TOKEN_KEYS.map(function (k) { var ck = k === 'cache_read' ? 'cacheRead' : k === 'cache_write' ? 'cacheWrite' : k; return COLORS[ck].border; });
+    var labels = TOKEN_KEYS.map(function (k) { return TOKEN_LABELS[k]; });
 
-    /* sorted desc by token count, key asc on ties */
-    withTokens.sort(function (a, b) {
-      var d = bucketTokens(b) - bucketTokens(a);
-      return d !== 0 ? d : (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+    if (charts.comp) charts.comp.destroy();
+    charts.comp = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{ data: values, backgroundColor: colors, borderColor: cssVar('--surface') || '#141416', borderWidth: 3, hoverOffset: 6 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 }, color: cssVar('--text-2') || '#a0a0ab' } },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var pct = (ctx.raw / total * 100).toFixed(1);
+                return ctx.label + ': ' + formatTokens(ctx.raw) + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
     });
-
-    var frag = document.createDocumentFragment();
-    withTokens.forEach(function (row) {
-      var total = bucketTokens(row);
-      var pct = total / grand * 100;
-      var pctText = trimOne(pct) + '%';
-
-      var rowEl = document.createElement('div');
-      rowEl.className = 'model-row';
-
-      var name = document.createElement('span');
-      name.className = 'model-name';
-      name.textContent = row.label || row.key;
-      name.title = row.label || row.key;
-
-      var bar = document.createElement('div');
-      bar.className = 'model-bar';
-      var fill = document.createElement('i');
-      fill.style.width = pct + '%';
-      bar.appendChild(fill);
-
-      var pctEl = document.createElement('span');
-      pctEl.className = 'model-pct';
-      pctEl.textContent = pctText;
-
-      var val = document.createElement('span');
-      val.className = 'model-val';
-      val.textContent = formatTokens(total);
-
-      rowEl.appendChild(name);
-      rowEl.appendChild(bar);
-      rowEl.appendChild(pctEl);
-      rowEl.appendChild(val);
-      frag.appendChild(rowEl);
-    });
-
-    modelSplit.textContent = '';
-    modelSplit.appendChild(frag);
   }
 
-  /* ── fetch + render cycle ────────────────────────────────
-     Requests are sequential: an earlier thread-bound-sqlite race in the
-     server was fixed in tracker/db.py (check_same_thread=False); the
-     serial chain is kept as a harmless simplification. On localhost the
-     extra round-trips cost milliseconds. */
+  /* ── Render: horizontal bar chart (model cost / tokens / project) ── */
+  function renderHBar(canvasId, emptyId, rows, valueKey, titleFn, colorList) {
+    var canvas = $(canvasId);
+    var empty = $(emptyId);
+    var filtered = (rows || []).filter(function (r) { return (r[valueKey] || 0) > 0; });
+    if (!filtered.length) { empty.style.display = 'flex'; if (charts[canvasId]) { charts[canvasId].destroy(); charts[canvasId] = null; } return; }
+    empty.style.display = 'none';
+
+    filtered.sort(function (a, b) { return (b[valueKey] || 0) - (a[valueKey] || 0); });
+    var top = filtered.slice(0, 10);
+    var labels = top.map(function (r) { return r.label || r.key; });
+    var values = top.map(function (r) { return r[valueKey] || 0; });
+    var colors = top.map(function (_, i) { return colorList[i % colorList.length]; });
+
+    if (charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors.map(function (c) { return c + 'cc'; }),
+          borderColor: colors,
+          borderWidth: 1,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, ticks: { callback: titleFn.tick || function (v) { return v; } } },
+          y: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' } } }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function (ctx) { return titleFn.tip(ctx.raw, top[ctx.dataIndex]); }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* ── Render: cost by model ─────────────────────────────── */
+  function renderCostModel(rows) {
+    renderHBar('chartCostModel', 'costModelEmpty', rows, 'cost',
+      {
+        tick: function (v) { return formatCost(v); },
+        tip: function (v, row) { return (row.label || row.key) + ': ' + formatCost(v); }
+      },
+      MODEL_COLORS
+    );
+  }
+
+  /* ── Render: tokens by model ───────────────────────────── */
+  function renderModelTokens(rows) {
+    renderHBar('chartModelTokens', 'modelTokensEmpty', rows, '_totalTokens',
+      {
+        tick: function (v) { return formatTokens(v); },
+        tip: function (v, row) { return (row.label || row.key) + ': ' + formatTokens(v); }
+      },
+      MODEL_COLORS
+    );
+  }
+
+  /* ── Render: usage by project ──────────────────────────── */
+  function renderProject(rows) {
+    renderHBar('chartProject', 'projectEmpty', rows, 'cost',
+      {
+        tick: function (v) { return formatCost(v); },
+        tip: function (v, row) { return (row.label || row.key) + ': ' + formatCost(v) + ' · ' + formatTokens(row._totalTokens || 0) + ' tokens'; }
+      },
+      ['#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#06b6d4', '#f97316']
+    );
+  }
+
+  /* ── Data fetch + render cycle ─────────────────────────── */
   function refresh() {
     if (inFlight) return;
     inFlight = true;
@@ -344,42 +369,47 @@
     var range = RANGES[currentRange];
     var bounds = rangeBounds(range);
     var q = 'from=' + bounds.from + '&to=' + bounds.to;
-    var chartUrl = '/api/breakdown?group_by=' + range.groupBy + '&' + q;
-    var modelUrl = '/api/breakdown?group_by=model&' + q;
 
     fetchJSON('/api/config')
       .then(function (cfg) {
         var secs = Number(cfg.refresh_seconds);
-        if (secs > 0 && secs !== refreshSeconds) {
-          refreshSeconds = secs;
-          startPolling();
+        if (secs > 0 && secs !== refreshSeconds) { refreshSeconds = secs; startPolling(); }
+        return fetchJSON('/api/summary?' + q);
+      })
+      .then(function (summary) {
+        if (mySeq !== seq) return;
+        lastSummary = summary;
+        renderStats(summary);
+
+        /* compute _totalTokens on each model/project row for the token charts */
+        function addTotal(rows) {
+          (rows || []).forEach(function (r) {
+            r._totalTokens = TOKEN_KEYS.reduce(function (s, k) { return s + (r.tokens[k] || 0); }, 0);
+          });
         }
-        return fetchJSON(chartUrl);
+        addTotal(summary.by_model);
+        addTotal(summary.by_project);
+
+        renderComposition(summary);
+        renderModelTokens(summary.by_model);
+        renderCostModel(summary.by_model);
+        renderProject(summary.by_project);
+
+        /* fetch time series */
+        return fetchJSON('/api/breakdown?group_by=' + range.groupBy + '&' + q);
       })
-      .then(function (chartData) {
+      .then(function (data) {
         if (mySeq !== seq) return;
-        lastData = {
-          chartRows: (chartData.rows || []).slice().sort(byKey),
-          modelRows: lastData ? lastData.modelRows : []
-        };
-        renderChart(lastData.chartRows);
-        return fetchJSON(modelUrl);
-      })
-      .then(function (modelData) {
-        if (mySeq !== seq) return;
-        lastData.modelRows = modelData.rows || [];
-        renderModels(lastData.modelRows);
+        var rows = (data.rows || []).slice().sort(function (a, b) { return a.key < b.key ? -1 : a.key > b.key ? 1 : 0; });
+        renderTokenChart(rows);
         lastSuccessAt = new Date();
         setLive();
         hideError();
       })
       .catch(function (err) {
         if (mySeq !== seq) return;
-        /* keep last data on screen; only the status/banner change */
         setOffline();
-        showError(err.status === 503
-          ? 'Database temporarily unavailable'
-          : 'Dashboard server unreachable — retrying…');
+        showError(err.status === 503 ? 'Database unavailable' : 'Server unreachable — retrying…');
       })
       .then(function () {
         if (mySeq === seq) inFlight = false;
@@ -391,7 +421,39 @@
     timer = setInterval(refresh, refreshSeconds * 1000);
   }
 
-  /* ── wiring ────────────────────────────────────────────── */
+  /* ── Theme change → re-render charts with new colors ───── */
+  function onThemeChange() {
+    destroyCharts();
+    applyChartDefaults();
+    if (lastSummary) {
+      /* re-render composition, model tokens, cost model, project from cached summary */
+      renderComposition(lastSummary);
+      var addTotal = function (rows) {
+        (rows || []).forEach(function (r) {
+          r._totalTokens = TOKEN_KEYS.reduce(function (s, k) { return s + (r.tokens[k] || 0); }, 0);
+        });
+      };
+      addTotal(lastSummary.by_model);
+      addTotal(lastSummary.by_project);
+      renderModelTokens(lastSummary.by_model);
+      renderCostModel(lastSummary.by_model);
+      renderProject(lastSummary.by_project);
+    }
+    /* refetch time series with new colors */
+    var range = RANGES[currentRange];
+    var bounds = rangeBounds(range);
+    fetchJSON('/api/breakdown?group_by=' + range.groupBy + '&from=' + bounds.from + '&to=' + bounds.to)
+      .then(function (data) {
+        var rows = (data.rows || []).slice().sort(function (a, b) { return a.key < b.key ? -1 : a.key > b.key ? 1 : 0; });
+        renderTokenChart(rows);
+      })
+      .catch(function () {});
+  }
+
+  /* ── Wiring ────────────────────────────────────────────── */
+  applyChartDefaults();
+
+  /* Range tabs */
   var activeTab = rangeTabs.querySelector('.range-tab[aria-pressed="true"]');
   if (activeTab) currentRange = activeTab.dataset.range;
 
@@ -405,21 +467,14 @@
     refresh();
   });
 
-  /* Re-render on theme change: bar colors come from CSS variables. */
+  /* Theme observer */
   if (window.MutationObserver) {
-    new MutationObserver(function () {
-      if (lastData) renderChart(lastData.chartRows);
-    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    new MutationObserver(onThemeChange).observe(document.documentElement, {
+      attributes: true, attributeFilter: ['data-theme']
+    });
   }
 
-  var resizeTimer = null;
-  window.addEventListener('resize', function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () {
-      if (lastData) renderChart(lastData.chartRows);
-    }, 150);
-  });
-
+  /* Start */
   refresh();
   startPolling();
 })();

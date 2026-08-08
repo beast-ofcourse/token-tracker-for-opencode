@@ -4,31 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark light">
-<title>OpenCode Token Tracker</title>
+<title>Token Tracker — OpenCode</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d0d0f'/%3E%3Cpath d='M17.8 5.5 8 18h5.4L12.6 26.5 23 13.5h-5.6z' fill='%23c8f04e'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="topbar">
-  <div class="shell topbar-inner">
+<!-- ─── Header ─────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-inner">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.6 2.5 4.8 13.6h4.6L8.4 21.5l8.8-11.1h-4.6z"/></svg>
+      <span class="brand-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.6 2.5 4.8 13.6h4.6L8.4 21.5 23 13.5h-4.6z"/></svg>
       </span>
-      <span class="brand-name">Token Tracker</span>
+      <span class="brand-text">Token Tracker</span>
     </div>
-    <div class="topbar-right">
+    <div class="header-right">
       <div class="sync" role="status">
         <span class="sync-dot" id="syncDot" aria-hidden="true"></span>
-        <span class="sync-text" id="syncText">Waiting for data</span>
+        <span class="sync-text" id="syncText">Connecting…</span>
       </div>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to light theme">
-        <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="4"/>
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      <button class="theme-btn" id="themeToggle" type="button" aria-label="Switch to light theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
         </svg>
-        <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
       </button>
@@ -36,87 +36,146 @@
   </div>
 </header>
 
+<!-- ─── Main ───────────────────────────────────────────── -->
 <main class="main">
-  <div class="shell">
+  <div class="container">
 
-    <div class="page-head">
-      <h1 class="page-title">Usage</h1>
+    <!-- Error banner -->
+    <div class="error-banner" id="errorBanner" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span id="errorBannerMsg"></span>
+    </div>
+
+    <!-- ─── Stat Cards ─────────────────────────────────── -->
+    <section class="stats" id="statsSection">
+      <div class="stat-card">
+        <div class="stat-label">Total Tokens</div>
+        <div class="stat-value" id="statTokens">—</div>
+        <div class="stat-sub" id="statTokensSub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Cost</div>
+        <div class="stat-value" id="statCost">—</div>
+        <div class="stat-sub" id="statCostSub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sessions</div>
+        <div class="stat-value" id="statSessions">—</div>
+        <div class="stat-sub" id="statSessionsSub"></div>
+      </div>
+      <div class="stat-card stat-card--budget">
+        <div class="stat-label">Budget</div>
+        <div class="stat-value" id="statBudget">—</div>
+        <div class="stat-budget-bar">
+          <div class="stat-budget-fill" id="budgetFill"></div>
+        </div>
+        <div class="stat-sub" id="statBudgetSub"></div>
+      </div>
+    </section>
+
+    <!-- ─── Range selector ─────────────────────────────── -->
+    <div class="toolbar">
       <div class="range-tabs" id="rangeTabs" role="group" aria-label="Time range">
         <button class="range-tab" type="button" data-range="daily" aria-pressed="false">Daily</button>
         <button class="range-tab" type="button" data-range="weekly" aria-pressed="false">Weekly</button>
-        <button class="range-tab" type="button" data-range="monthly" aria-pressed="false">Monthly</button>
-        <button class="range-tab" type="button" data-range="all" aria-pressed="true">All time</button>
+        <button class="range-tab" type="button" data-range="monthly" aria-pressed="true">Monthly</button>
+        <button class="range-tab" type="button" data-range="all" aria-pressed="false">All time</button>
       </div>
     </div>
 
-    <div class="error-banner" id="errorBanner" role="alert">
-      <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/>
-        <line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <span id="errorBannerMsg">Dashboard server unreachable — retrying…</span>
-    </div>
+    <!-- ─── Charts Grid ────────────────────────────────── -->
+    <div class="grid">
 
-    <section class="panel">
-      <div class="panel-head">
-        <h2 class="panel-title">Token usage</h2>
-        <div class="legend" aria-hidden="true">
-          <span class="legend-item"><i class="swatch swatch-in"></i>Input</span>
-          <span class="legend-item"><i class="swatch swatch-out"></i>Output</span>
+      <!-- Token usage over time -->
+      <section class="card card--wide">
+        <div class="card-head">
+          <h2 class="card-title">Token Usage</h2>
+          <div class="legend" id="chartLegend" aria-hidden="true"></div>
         </div>
-      </div>
-      <div class="chart-frame">
-        <div class="chart" id="chart"></div>
-        <div class="empty-state" id="chartEmpty">
-          <svg class="empty-icon" viewBox="0 0 40 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M2 20l10-8 6 6 8-12 6 8 8-6"/>
-          </svg>
-          <p class="empty-title">No token data yet</p>
-          <span class="empty-note">Usage will appear here as soon as sessions are recorded.</span>
+        <div class="chart-wrap">
+          <canvas id="chartTokenUsage"></canvas>
+          <div class="empty-state" id="chartEmpty">
+            <p>No token data yet</p>
+            <span>Usage will appear as sessions are recorded.</span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="panel">
-      <div class="panel-head">
-        <h2 class="panel-title">Usage by model</h2>
-      </div>
-      <div class="model-frame">
-        <div class="model-split" id="modelSplit"></div>
-        <div class="empty-state" id="modelEmpty">
-          <svg class="empty-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <rect x="3" y="12" width="4" height="9" rx="1"/>
-            <rect x="10" y="7" width="4" height="14" rx="1"/>
-            <rect x="17" y="3" width="4" height="18" rx="1"/>
-          </svg>
-          <p class="empty-title">No model data yet</p>
-          <span class="empty-note">Per-model usage will appear here as soon as sessions are recorded.</span>
+      <!-- Token composition -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Token Composition</h2>
         </div>
-      </div>
-    </section>
+        <div class="chart-wrap chart-wrap--donut">
+          <canvas id="chartComposition"></canvas>
+          <div class="empty-state" id="compEmpty">
+            <p>No data</p>
+          </div>
+        </div>
+      </section>
 
-  </div>
+      <!-- Cost by model -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Cost by Model</h2>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chartCostModel"></canvas>
+          <div class="empty-state" id="costModelEmpty">
+            <p>No cost data</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Usage by project -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Usage by Project</h2>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chartProject"></canvas>
+          <div class="empty-state" id="projectEmpty">
+            <p>No project data</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Usage by model (tokens) -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Tokens by Model</h2>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chartModelTokens"></canvas>
+          <div class="empty-state" id="modelTokensEmpty">
+            <p>No model data</p>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /grid -->
+
+  </div><!-- /container -->
 </main>
 
+<!-- Toast -->
 <div class="toast" id="toast" role="status" aria-live="polite">
-  <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-    <polyline points="22 4 12 14.01 9 11.01"/>
-  </svg>
   <span id="toastMsg"></span>
 </div>
 
+<script src="vendor/js/chart.umd.min.js"></script>
 <script>
-/* Theme toggle — part of the T-011 shell, kept self-contained so the
-   data layer (app.js) can be rewritten without touching it. Dark is
-   the default; the choice is persisted in localStorage. */
+/* Theme toggle — self-contained, survives app.js rewrites */
 (function () {
   var root = document.documentElement;
   var btn = document.getElementById('themeToggle');
   var saved = null;
-  try { saved = window.localStorage.getItem('tt-theme'); } catch (e) { /* storage unavailable */ }
+  try { saved = localStorage.getItem('tt-theme'); } catch (e) {}
   if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) root.setAttribute('data-theme', 'light');
 
   function syncLabel() {
     var light = root.getAttribute('data-theme') === 'light';
@@ -128,7 +187,7 @@
     var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     root.setAttribute('data-theme', next);
     syncLabel();
-    try { window.localStorage.setItem('tt-theme', next); } catch (e) { /* storage unavailable */ }
+    try { localStorage.setItem('tt-theme', next); } catch (e) {}
   });
 })();
 </script>
