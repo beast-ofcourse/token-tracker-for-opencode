@@ -346,16 +346,18 @@
   function renderBreakdownTable(tbodyId,emptyId,countId,rows,valueKey) {
     var tbody=$(tbodyId);
     var filtered=byCost(rows||[]).filter(function(r){return totalTokens(r.tokens)>0||(valueKey==='cost'&&(r.cost||0)>0);});
-    if(!filtered.length){showEmpty(emptyId,true);tbody.innerHTML='';$(countId).textContent='';return;}
-    showEmpty(emptyId,false);
+    if(!filtered.length){showEmpty(emptyId,false);tbody.innerHTML='';$(countId).textContent='';return;}
+    showEmpty(emptyId,true);
     var grand=filtered.reduce(function(s,r){return s+(valueKey==='cost'?(r.cost||0):totalTokens(r.tokens));},0);
+    var grandTokens=filtered.reduce(function(s,r){return s+totalTokens(r.tokens);},0);
+    var useTokenPct=valueKey==='cost'&&grand<=0;
     $(countId).textContent=filtered.length+' models';
     if(tbodyId==='tbodyProjects')$(countId).textContent=filtered.length+' projects';
     if(tbodyId==='tbodyAgents')$(countId).textContent=filtered.length+' agents';
     var html='';
     filtered.forEach(function(r){
       var tt=totalTokens(r.tokens);
-      var pct=grand>0?(valueKey==='cost'?(r.cost||0)/grand*100:tt/grand*100):0;
+      var pct=useTokenPct?(grandTokens>0?tt/grandTokens*100:0):(grand>0?(valueKey==='cost'?(r.cost||0)/grand*100:tt/grand*100):0);
       var isFree=(r.key||'').indexOf('-free')>-1;
       html+='<tr>'
         +'<td class="model-name" title="'+esc(r.label||r.key)+'">'+esc(r.label||r.key)+'</td>'
@@ -383,8 +385,8 @@
       .then(function(data){
         var items=data.items||[];
         var tbody=$('tbodySessions');
-        if(!items.length){showEmpty('emptyTableSessions',true);tbody.innerHTML='';$('sessionCount').textContent='';return;}
-        showEmpty('emptyTableSessions',false);
+        if(!items.length){showEmpty('emptyTableSessions',false);tbody.innerHTML='';$('sessionCount').textContent='';return;}
+        showEmpty('emptyTableSessions',true);
         $('sessionCount').textContent=data.total+' total';
         var html='';
         items.forEach(function(s){
@@ -440,6 +442,10 @@
         if (mySeq !== seq) return;
         lastSummary = summary;
         renderStats(summary);
+        /* Hide cost-only sections when all models are free */
+        var costSections=document.querySelectorAll('[data-cost-section]');
+        var hasCost=summary.totals.cost>0;
+        costSections.forEach(function(el){el.style.display=hasCost?'':'none';});
         renderComposition(summary);
         renderEfficiency(summary);
         renderCostModel(summary.by_model);

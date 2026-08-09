@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark light">
 <title>Token Tracker — OpenCode</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d0d0f'/%3E%3Cpath d='M17.8 5.5 8 18h5.4L12.6 26.5 23 13.5h-5.6z' fill='%23c8f04e'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3.1">
 </head>
 <body>
 
@@ -93,7 +93,7 @@
     <!-- ═══════════════════════════════════════════════════
          SECTION 2 — COST OVER TIME
          ═══════════════════════════════════════════════════ -->
-    <section class="card card--wide" id="sectionCostTime">
+    <section class="card card--wide" id="sectionCostTime" data-cost-section>
       <div class="card-head">
         <h2 class="card-title">Cost Over Time</h2>
       </div>
@@ -151,7 +151,7 @@
     <!-- ═══════════════════════════════════════════════════
          SECTION 4 — COST BY MODEL + TOKENS BY MODEL
          ═══════════════════════════════════════════════════ -->
-    <div class="grid grid--2">
+    <div class="grid grid--2" id="costModelGrid" data-cost-section>
       <section class="card">
         <div class="card-head"><h2 class="card-title">Cost by Model</h2></div>
         <div class="chart-wrap chart-wrap--med">
@@ -324,7 +324,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span></div>
 
-<script src="vendor/js/chart.umd.min.js"></script>
+<script src="vendor/js/chart.umd.min.js?v=3.1"></script>
 <script>
 /* Theme toggle */
 (function () {
@@ -343,6 +343,6 @@
   });
 })();
 </script>
-<script src="app.js" defer></script>
+<script src="app.js?v=3.1" defer></script>
 </body>
 </html>
