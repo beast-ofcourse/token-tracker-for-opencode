@@ -184,11 +184,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .stat-card--budget.warn .stat-value { color: var(--amber); }
 .stat-card--budget.exceeded .stat-value { color: var(--red); }
 .stat-budget-bar {
-  height: 4px; background: var(--surface-2); border-radius: 2px;
+  height: 6px; background: var(--surface-2); border-radius: 3px;
   margin: 10px 0 6px; overflow: hidden;
 }
 .stat-budget-fill {
-  height: 100%; border-radius: 2px; background: var(--accent);
+  height: 100%; border-radius: 3px; background: var(--accent);
   width: 0%; transition: width 0.6s ease, background 0.3s;
 }
 .stat-card--budget.warn .stat-budget-fill { background: var(--amber); }
@@ -218,7 +218,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border-radius: var(--radius); padding: 20px;
   transition: border-color 0.15s; margin-bottom: 16px;
 }
-.card:hover { border-color: var(--border-strong); }
+.card:hover { border-color: var(--border-strong); background: color-mix(in srgb, var(--surface) 96%, var(--text) 4%); }
 .card--wide { grid-column: 1 / -1; }
 .card-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -277,17 +277,23 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   color: var(--text); margin-bottom: 6px;
 }
 .efficiency-bar {
-  height: 4px; background: var(--surface-2); border-radius: 2px;
+  height: 5px; background: var(--surface-2); border-radius: 3px;
   overflow: hidden; margin-bottom: 4px;
 }
 .efficiency-fill {
-  height: 100%; border-radius: 2px; background: var(--accent);
+  height: 100%; border-radius: 3px; background: var(--accent);
   width: 0%; transition: width 0.5s ease;
 }
 .efficiency-note { font-size: 10px; color: var(--text-3); }
 
 /* ── Data tables ───────────────────────────────────────── */
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; position: relative; -webkit-overflow-scrolling: touch; }
+.table-wrap::after {
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0;
+  width: 40px; pointer-events: none; opacity: 0;
+  background: linear-gradient(to right, transparent, var(--surface));
+  transition: opacity 0.2s;
+}
 .data-table {
   width: 100%; border-collapse: collapse;
   font-size: 13px;
@@ -316,6 +322,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .data-table td.cost { color: var(--text); font-weight: 600; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--surface-hover); }
+.data-table tbody tr { transition: background 0.1s; }
 .data-table .pct-bar-cell { width: 80px; }
 .data-table .pct-bar {
   height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden;
@@ -329,8 +336,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .data-table .session-date { font-size: 12px; color: var(--text-3); white-space: nowrap; }
 .data-table .tag {
-  display: inline-block; font-size: 11px; font-weight: 500;
-  padding: 2px 6px; border-radius: 4px; white-space: nowrap;
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 4px; white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 .data-table .tag--free { background: var(--accent-dim); color: var(--accent); }
 .data-table .tag--paid { background: var(--amber-dim); color: var(--amber); }
@@ -340,7 +348,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   position: fixed; right: 20px; bottom: 20px; z-index: 200;
   display: none; align-items: center; gap: 8px;
   background: var(--surface-2); color: var(--text);
-  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
   padding: 10px 14px; font-size: 13px; font-weight: 500;
   box-shadow: var(--shadow-lg);
 }
@@ -352,6 +361,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 @media (max-width: 900px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
+  .table-wrap::after { opacity: 1; }
 }
 @media (max-width: 600px) {
   .main { padding: 16px 16px 48px; }

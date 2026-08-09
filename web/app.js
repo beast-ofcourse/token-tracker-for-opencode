@@ -275,7 +275,9 @@
     if(!filtered.length){showEmpty(emptyId,false);if(charts[canvasId]){charts[canvasId].destroy();charts[canvasId]=null;}return;}
     showEmpty(emptyId,true);
     var top=byCost(filtered).slice(0,10);
-    var labels=top.map(function(r){return r.label||r.key;});
+    var isMobile=window.innerWidth<600;
+    var maxLabelLen=isMobile?20:35;
+    var labels=top.map(function(r){var lbl=r.label||r.key;return lbl.length>maxLabelLen?lbl.substring(0,maxLabelLen)+'…':lbl;});
     var values=top.map(function(r){return r[valueKey]||0;});
     var cls=top.map(function(_,i){return colors[i%colors.length];});
     if(charts[canvasId])charts[canvasId].destroy();
@@ -286,6 +288,7 @@
         borderColor:cls,borderWidth:1,borderRadius:4,borderSkipped:false
       }]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        layout:{padding:{left:4}},
         scales:{x:{beginAtZero:true,ticks:{callback:tipFn.tick||function(v){return v;}}},
           y:{grid:{display:false},ticks:{font:{size:11,weight:'500'},autoSkipPadding:12}}},
         plugins:{tooltip:{callbacks:{label:function(c){return tipFn.tip(c.raw,top[c.dataIndex]);}}}}}
@@ -378,6 +381,14 @@
   /* ══════════════════════════════════════════════════════════
      RECENT SESSIONS TABLE
      ══════════════════════════════════════════════════════════ */
+  function cleanTitle(title, createdDate) {
+    if (!title) return '(untitled)';
+    if (/^New session - \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(title)) {
+      return 'Session · ' + createdDate.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + createdDate.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    }
+    return title;
+  }
+
   function renderSessions() {
     var range=RANGES[currentRange];
     var bounds=rangeBounds(range);
@@ -395,7 +406,7 @@
           var created=new Date(s.created_at);
           var dateStr=created.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+created.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
           html+='<tr>'
-            +'<td class="session-title" title="'+esc(s.title||'')+'">'+esc(s.title||'(untitled)')+'</td>'
+            +'<td class="session-title" title="'+esc(s.title||'')+'">'+esc(cleanTitle(s.title, created))+'</td>'
             +'<td><span class="tag '+(isFree?'tag--free':'tag--paid')+'">'+esc(shortModel(s.model))+'</span></td>'
             +'<td style="font-size:12px;color:var(--text-3)">'+esc(s.agent||'—')+'</td>'
             +'<td class="num">'+formatTokens(s.tokens.input)+'</td>'
