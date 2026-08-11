@@ -1,57 +1,77 @@
-﻿# opencode-token-tracker-cli
+﻿# Token Tracker for OpenCode
 
-A local, read-only dashboard and CLI that tracks OpenCode's token usage from OpenCode's own SQLite database. No plugins, no hooks, no cloud.
+A local, read-only dashboard and CLI that tracks OpenCode's token usage, cost, and budget — directly from OpenCode's own SQLite database. No plugins, no hooks, no cloud.
 
-## What it does
+![Dashboard dark theme](dashboard-dark-check.png)
 
-Reads `~/.local/share/opencode/opencode.db` (read-only, WAL-safe) and shows:
+## Why this exists
 
-- **Web dashboard** (`python -m tracker serve`) â€” minimalist dark/light dashboard with a range selector (Daily / Weekly / Monthly / All time), a stacked input/output token chart, and a per-model usage panel. Auto-refreshes every 30s.
-- **CLI** â€” `summary` prints monthly spend/tokens; `sessions --csv` exports sessions.
+OpenCode stores detailed session data in a local SQLite database, but there's no built-in way to see how much you're spending across sessions, models, and projects. Token Tracker reads that database and turns it into a clean dashboard with cost tracking, budget alerts, and per-model breakdowns.
 
-Cost is computed from a user-maintained pricing table (the DB's `cost` column is 0 for free models). Free models (`*-free`) price at $0 automatically.
+## Features
 
-## Install
+- **Web dashboard** — dark/light theme, auto-refreshes every 30s, responsive on mobile
+- **Stacked token charts** — input, output, reasoning, cache read/write over time
+- **Cost tracking** — per-model and per-project cost breakdowns with configurable pricing
+- **Budget alerts** — monthly budget with 80% warning and 100% exceeded thresholds
+- **Cache efficiency metrics** — hit rate, output ratio, reasoning overhead
+- **Session activity** — recent sessions with model, agent, token counts, and cost
+- **CLI summary** — monthly spend and token totals in the terminal
+- **CSV export** — session data exportable for spreadsheet analysis
+- **Dual install** — pip (Python) or npm (bundled Python wrapper)
+
+## Quick start
+
+### Python (recommended)
 
 ```bash
 pip install -r requirements.txt
-pip install -r requirements-dev.txt   # for tests
+python -m tracker serve
 ```
 
-Python 3.11+.
+Dashboard opens at `http://127.0.0.1:8765`.
 
-### npm package
-
-The tool also ships as an npm package (the Python code is bundled inside):
+### npm
 
 ```bash
 npm install -g opencode-token-tracker-cli
-tracker summary
 tracker serve
 ```
 
 Or without installing:
 
 ```bash
-npx opencode-token-tracker-cli summary
+npx opencode-token-tracker-cli serve
 ```
 
-The `serve` command needs the Python web dependencies once:
+> The `serve` command needs Python web dependencies. Install once with `pip install -r requirements.txt`.
+
+## CLI usage
 
 ```bash
-pip install -r requirements.txt
+python -m tracker summary                    # current month summary
+python -m tracker summary --month 2026-07    # specific month
+python -m tracker summary --json             # JSON output
+python -m tracker sessions --csv out.csv     # export sessions to CSV
+python -m tracker serve --port 9000          # custom port
 ```
 
-Set `TRACKER_PYTHON` to use a specific Python interpreter.
-
-## Configure
+With npm:
 
 ```bash
+tracker summary
+tracker sessions --csv sessions.csv
+tracker serve --port 9000
+```
+
+## Configuration
+
+Copy the example config and edit as needed:
+
+```bash
+cp config.example.json config.json     # Unix/Mac
 copy config.example.json config.json   # Windows
-cp config.example.json config.json     # Unix
 ```
-
-Defaults work out of the box: DB path `~/.local/share/opencode/opencode.db` (override with `OPENCODE_DB` env var), budget $20/month, port 8765. Config schema:
 
 ```json
 {
@@ -65,42 +85,80 @@ Defaults work out of the box: DB path `~/.local/share/opencode/opencode.db` (ove
 }
 ```
 
-Prices are USD per 1M tokens. An explicit entry always wins; a model id ending in `-free` is free when unpriced; unknown models are flagged `unpriced` (DB cost used as fallback when positive).
+**Pricing** is USD per 1M tokens. Models ending in `-free` price at $0 automatically. Unknown models use the DB's cost column as fallback.
 
-## Usage
+### Environment variables
 
-```bash
-python -m tracker serve                 # dashboard at http://127.0.0.1:8765
-python -m tracker summary               # monthly summary in the terminal
-python -m tracker summary --month 2026-07
-python -m tracker summary --json
-python -m tracker sessions --csv out.csv
-python -m tracker serve --port 9000
-```
+| Variable | Purpose | Default |
+|---|---|---|
+| `OPENCODE_DB` | Override database path | `~/.local/share/opencode/opencode.db` |
+| `TRACKER_PYTHON` | Python interpreter for npm wrapper | system Python |
 
-## Budget
+## How it works
 
-Monthly budget with configurable reset day (default 1st). 80% = warning, 100% = exceeded. Month-end projection = `spent / elapsed_days * total_days`.
+1. Reads `~/.local/share/opencode/opencode.db` in **read-only** mode (WAL-safe)
+2. If WAL access fails, falls back to a snapshot copy in a temp directory
+3. Computes costs from your pricing table (DB cost column is 0 for free models)
+4. Serves a static dashboard via FastAPI + Uvicorn
+5. Dashboard polls the API every 30s for live updates
 
-## Design
+## Dashboard sections
 
-Minimalist dashboard, dark + light themes (toggle in the header, persisted), Rubik + JetBrains Mono (vendored woff2, fully offline), hand-rolled SVG charts â€” no chart library, no build step.
+| Section | Description |
+|---|---|
+| **Stat cards** | Total tokens, total cost, sessions, budget progress |
+| **Token usage over time** | Stacked bar chart (input/output/reasoning/cache) |
+| **Cost over time** | Line chart of cost trends (hidden when all free) |
+| **Token composition** | Doughnut chart of token type breakdown |
+| **Cache efficiency** | Hit rate, output ratio, reasoning overhead, cache write |
+| **Cost / tokens by model** | Horizontal bar charts |
+| **Usage by project / agent** | Horizontal bar charts |
+| **Session activity** | Bar chart of session counts over time |
+| **Model / Project / Agent breakdown** | Detailed tables with percentages |
+| **Recent sessions** | Last 20 sessions with model, agent, tokens, cost |
+
+## Budget tracking
+
+Monthly budget with configurable reset day (default: 1st of month).
+
+- **< 80%** — green (on track)
+- **80–100%** — amber warning
+- **> 100%** — red exceeded
+
+Month-end projection: `spent / elapsed_days × total_days`.
 
 ## Troubleshooting
 
-- **DB not found** â€” dashboard shows an error banner; set `OPENCODE_DB` or fix `db_path` in `config.json`.
-- **Port busy** â€” `Port 8765 is in use - try --port 9000`.
-- **WAL read-only failure** â€” the tool falls back to a snapshot copy of the DB + WAL files in a temp dir.
-- **Missing dependency** â€” `Missing dependency: fastapi. Run: pip install -r requirements.txt`.
+| Issue | Fix |
+|---|---|
+| DB not found | Set `OPENCODE_DB` or fix `db_path` in `config.json` |
+| Port busy | Try `--port 9000` |
+| WAL read-only failure | Tool auto-falls back to snapshot copy in temp dir |
+| Missing dependency | Run `pip install -r requirements.txt` |
 
-## Tests
+## Development
 
 ```bash
-python -m pytest
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+python -m tracker serve          # start dev server
+python -m pytest                 # run tests
 ```
 
-## Roadmap (v2)
+## Project structure
 
-- Message text rendering
-- TUI dashboard
-- Notifications
+```
+tracker/          Python package (CLI, API, DB, pricing, aggregation)
+web/              Static dashboard (HTML, CSS, JS, vendored Chart.js + fonts)
+bin/tracker.js    npm wrapper entry point
+config.example.json
+```
+
+## Requirements
+
+- Python 3.11+
+- OpenCode installed (provides the SQLite database)
+
+## License
+
+MIT

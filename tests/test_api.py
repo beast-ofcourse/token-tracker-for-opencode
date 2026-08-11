@@ -452,7 +452,7 @@ def test_root_serves_dashboard_html(tmp_path):
     response = client.get("/")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "<title>OpenCode Token Tracker</title>" in response.text
+    assert "<title>Token Tracker" in response.text
 def test_concurrent_requests_succeed(tmp_path):
     """Regression: concurrent requests used to 500 with a thread-bound sqlite3
     connection (get_db dependency and endpoint run in different threadpool
