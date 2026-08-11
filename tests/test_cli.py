@@ -120,3 +120,28 @@ def test_serve_port_busy_exits_1(tmp_path, fixture_db, capsys):
             main(["serve", "--port", str(port), "--config", cfg])
     assert excinfo.value.code == 1
     assert f"Port {port} is in use" in capsys.readouterr().err
+
+
+# --- _month_bounds_for_arg (month string -> epoch-ms bounds) ----------------
+
+from tracker.cli import _month_bounds_for_arg
+
+
+def test_month_bounds_for_arg_valid_month():
+    start, end = _month_bounds_for_arg("2026-07", reset_day=1)
+    # 2026-07-01 00:00:00 UTC -> 2026-08-01 00:00:00 UTC
+    assert start == 1_782_864_000_000
+    assert end == 1_785_542_400_000
+
+
+def test_month_bounds_for_arg_rejects_malformed():
+    for bad in ("2026-13", "2026-00", "202607", "abcd-ef", "2026-7"):
+        with pytest.raises(ValueError):
+            _month_bounds_for_arg(bad, reset_day=1)
+
+
+def test_month_bounds_for_arg_respects_reset_day():
+    # With reset_day=15, the "July" window runs 2026-07-15 through 2026-08-15.
+    start, end = _month_bounds_for_arg("2026-07", reset_day=15)
+    assert start == 1_784_073_600_000  # 2026-07-15 00:00:00 UTC
+    assert end == 1_786_752_000_000  # 2026-08-15 00:00:00 UTC

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opencode-token-tracker"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Token usage tracker for OpenCode"
 requires-python = ">=3.11"
 dependencies = [
@@ -21,5 +21,11 @@ dev = [
 [project.scripts]
 opencode-token-tracker = "tracker.cli:main"
 
+[tool.setuptools.dynamic]
+version = {attr = "tracker.__version__"}
+
 [tool.setuptools.packages.find]
 include = ["tracker*"]
+
+[tool.setuptools.package-data]
+tracker = ["web/*", "web/vendor/fonts/*", "web/vendor/js/*"]

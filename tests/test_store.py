@@ -9,6 +9,7 @@ from tracker.store import (
     Session,
     fetch_messages,
     fetch_projects,
+    fetch_session,
     fetch_sessions,
     parse_model,
 )
@@ -16,6 +17,7 @@ from tracker.store import (
 MODEL_FREE_JSON = json.dumps(
     {"id": "deepseek-v4-flash-free", "providerID": "opencode", "variant": "high"}
 )
+from conftest import row_conn
 
 
 def _ms(year: int, month: int, day: int, hour: int = 12) -> int:
@@ -24,7 +26,7 @@ def _ms(year: int, month: int, day: int, hour: int = 12) -> int:
 
 
 def _conn(fixture_db) -> sqlite3.Connection:
-    return sqlite3.connect(fixture_db)
+    return row_conn(fixture_db)
 
 
 # --- parse_model -----------------------------------------------------------
@@ -303,5 +305,42 @@ def test_null_time_created_treated_as_epoch_zero_and_excluded_from_ranges(fixtur
         assert null_ts.created_ms == 0
         ranged = fetch_sessions(conn, from_ms=1_700_000_000_000)
         assert all(s.id != "sess-null-ts" for s in ranged)
+    finally:
+        conn.close()
+
+
+# --- fetch_session (direct id lookup) ---------------------------------------
+
+
+def test_fetch_session_returns_matching_session(fixture_db):
+    conn = _conn(fixture_db)
+    try:
+        session = fetch_session(conn, "sess-002")
+    finally:
+        conn.close()
+    assert session is not None
+    assert session.id == "sess-002"
+    assert session.model_key == "openai/gpt-4o"
+
+
+def test_fetch_session_returns_none_for_unknown_id(fixture_db):
+    conn = _conn(fixture_db)
+    try:
+        assert fetch_session(conn, "no-such-session") is None
+    finally:
+        conn.close()
+
+
+def test_fetch_session_includes_empty_aborted_session(fixture_db):
+    """Unlike fetch_sessions (which excludes empties by default), the direct
+    lookup returns a session by id regardless of whether it is empty."""
+    conn = _conn(fixture_db)
+    try:
+        empties = [
+            s.id for s in fetch_sessions(conn, include_empty=True)
+            if s.model_key == "unknown" and sum(s.tokens.values()) == 0
+        ]
+        assert empties, "fixture should contain an empty session"
+        assert fetch_session(conn, empties[0]) is not None
     finally:
         conn.close()

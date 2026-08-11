@@ -1,10 +1,13 @@
 __pycache__/
 *.pyc
+build/
+*.egg-info/
 .venv/
 config.json
 *.csv
 .pytest_cache/
 .playwright-mcp/
 dashboard-*.png
+!dashboard-dark-check.png
 opencode.json
 .omo/

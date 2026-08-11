@@ -9,8 +9,6 @@ global `--config PATH`. The fastapi/uvicorn imports are deferred into
 from __future__ import annotations
 
 import argparse
-import csv
-import io
 import json
 import re
 import sys
@@ -19,10 +17,10 @@ from pathlib import Path
 
 from tracker.aggregate import format_cost, month_bounds, month_bounds_for, summarize
 from tracker.config import Budget, Config, load_config
-from tracker.csvutil import csv_safe
+from tracker.csvutil import csv_safe, render_sessions_csv
 from tracker.db import DbNotFoundError, open_connection, resolve_db_path
 from tracker.pricing import compute_cost, format_tokens
-from tracker.store import fetch_projects, fetch_sessions
+from tracker.store import TOKEN_KEYS, fetch_projects, fetch_sessions
 
 _MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -140,43 +138,6 @@ def cmd_summary(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
-def _sessions_csv(sessions, projects, pricing) -> str:
-    """Render sessions to CSV with the /api/export.csv columns and injection guard."""
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(
-        [
-            "id", "title", "project", "model", "agent", "created_at", "updated_at",
-            "tokens_input", "tokens_output", "tokens_reasoning",
-            "tokens_cache_read", "tokens_cache_write", "cost", "unpriced",
-        ]
-    )
-    for session in sessions:
-        cost, unpriced = compute_cost(session, pricing)
-        created = datetime.fromtimestamp(session.created_ms / 1000, tz=timezone.utc)
-        updated = datetime.fromtimestamp(session.updated_ms / 1000, tz=timezone.utc)
-        tokens = session.tokens
-        writer.writerow(
-            [
-                csv_safe(session.id),
-                csv_safe(session.title),
-                csv_safe(projects.get(session.project_id)),
-                csv_safe(session.model_key),
-                csv_safe(session.agent),
-                csv_safe(created.isoformat()),
-                csv_safe(updated.isoformat()),
-                tokens.get("input", 0),
-                tokens.get("output", 0),
-                tokens.get("reasoning", 0),
-                tokens.get("cache_read", 0),
-                tokens.get("cache_write", 0),
-                f"{cost:.4f}",
-                "true" if unpriced else "false",
-            ]
-        )
-    return buffer.getvalue()
-
-
 def cmd_sessions(args: argparse.Namespace, config: Config) -> int:
     try:
         conn = open_connection(resolve_db_path(config))
@@ -208,7 +169,7 @@ def cmd_sessions(args: argparse.Namespace, config: Config) -> int:
             include_empty=args.include_empty,
         )
         if args.csv:
-            content = _sessions_csv(sessions, projects, config.pricing)
+            content = render_sessions_csv(sessions, projects, config.pricing)
             try:
                 Path(args.csv).write_text(content, encoding="utf-8", newline="")
             except OSError as exc:
@@ -221,11 +182,11 @@ def cmd_sessions(args: argparse.Namespace, config: Config) -> int:
             return 0
         for session in sessions:
             cost, _ = compute_cost(session, config.pricing)
-            total_tokens = sum(session.tokens.get(k, 0) for k in (
-                "input", "output", "reasoning", "cache_read", "cache_write"))
+            total_tokens = sum(session.tokens.get(k, 0) for k in TOKEN_KEYS)
+            project = projects.get(session.project_id) if session.project_id else None
             print(
                 f"{session.id}  {session.title or ''}  "
-                f"{projects.get(session.project_id) or ''}  "
+                f"{project or ''}  "
                 f"{session.model_key}  {format_tokens(total_tokens)}  "
                 f"{format_cost(cost)}"
             )

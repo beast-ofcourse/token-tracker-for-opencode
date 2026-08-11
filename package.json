@@ -10,7 +10,6 @@
   "files": [
     "bin",
     "tracker",
-    "web",
     "config.example.json",
     "requirements.txt",
     "README.md"
