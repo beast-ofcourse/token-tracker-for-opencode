@@ -17,10 +17,15 @@
   var errorMsg = $('errorBannerMsg');
   var rangeTabs = $('rangeTabs');
 
-  /* ── Chart color palette ───────────────────────────────── */
-  function cssVar(n) {
-    return getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  }
+/* ── Chart color palette ───────────────────────────────── */
+var cssVarCache = {};
+function cssVar(n) {
+  if (cssVarCache[n] !== undefined) return cssVarCache[n];
+  var val = getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  cssVarCache[n] = val;
+  return val;
+}
+function invalidateCssCache() { cssVarCache = {}; }
 
   var TOKEN_COLORS = {
     input:      '#22c55e',
@@ -84,6 +89,20 @@
   function fmtPct(x) { return x.toFixed(1) + '%'; }
   function totalTokens(t) {
     return TOKEN_KEYS.reduce(function(s,k){ return s + (t[k]||0); }, 0);
+  }
+
+  var pendingUpdates = [];
+  var rafScheduled = false;
+  function scheduleUpdate(fn) {
+    pendingUpdates.push(fn);
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(function() {
+        var batch = pendingUpdates.splice(0);
+        rafScheduled = false;
+        batch.forEach(function(fn) { fn(); });
+      });
+    }
   }
   function rangeBounds(range) {
     var now = new Date(), from;
@@ -177,17 +196,23 @@
       return{label:TOKEN_LABELS[k],data:rows.map(function(r){return r.tokens[k]||0;}),
         backgroundColor:TOKEN_BG[k],borderColor:TOKEN_COLORS[k],borderWidth:1,borderRadius:2,borderSkipped:false};
     });
-    if(charts.timeSeries)charts.timeSeries.destroy();
-    charts.timeSeries=new Chart(canvas,{
-      type:'bar',data:{labels:labels,datasets:datasets},
-      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-        scales:{x:{stacked:true,grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:20}},
-          y:{stacked:true,beginAtZero:true,ticks:{callback:function(v){return formatTokens(v);}}}},
-        plugins:{tooltip:{callbacks:{
-          label:function(c){return c.dataset.label+': '+formatTokens(c.raw);},
-          footer:function(items){return 'Total: '+formatTokens(items.reduce(function(s,i){return s+i.raw;},0));}
-        }}}}
-    });
+    if(charts.timeSeries){
+      charts.timeSeries.data.labels=labels;
+      charts.timeSeries.data.datasets=datasets;
+      charts.timeSeries.update('none');
+    } else {
+      charts.timeSeries=new Chart(canvas,{
+        type:'bar',data:{labels:labels,datasets:datasets},
+        options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+          animation:false,
+          scales:{x:{stacked:true,grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:20}},
+            y:{stacked:true,beginAtZero:true,ticks:{callback:function(v){return formatTokens(v);}}}},
+          plugins:{tooltip:{callbacks:{
+            label:function(c){return c.dataset.label+': '+formatTokens(c.raw);},
+            footer:function(items){return 'Total: '+formatTokens(items.reduce(function(s,i){return s+i.raw;},0));}
+          }}}}
+      });
+    }
     $('legendTimeSeries').innerHTML=datasets.map(function(d){
       return '<span class="legend-item"><span class="legend-dot" style="background:'+d.borderColor+'"></span>'+d.label+'</span>';
     }).join('');
@@ -202,19 +227,26 @@
     showEmpty('emptyCostTime',true);
     var labels=rows.map(function(r){return r.label;});
     var data=rows.map(function(r){return r.cost||0;});
-    if(charts.costTime)charts.costTime.destroy();
-    charts.costTime=new Chart(canvas,{
-      type:'line',data:{labels:labels,datasets:[{
-        label:'Cost',data:data,
-        borderColor:cssVar('--accent')||'#22c55e',
-        backgroundColor:(cssVar('--accent-dim')||'rgba(34,197,94,0.1)'),
-        fill:true,tension:0.3,pointRadius:3,pointHoverRadius:5,borderWidth:2
-      }]},
-      options:{responsive:true,maintainAspectRatio:false,
-        scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:20}},
-          y:{beginAtZero:true,ticks:{callback:function(v){return formatCost(v);}}}},
-        plugins:{tooltip:{callbacks:{label:function(c){return formatCost(c.raw);}}}}}
-    });
+    if(charts.costTime){
+      charts.costTime.data.labels=labels;
+      charts.costTime.data.datasets[0].data=data;
+      charts.costTime.data.datasets[0].borderColor=cssVar('--accent')||'#22c55e';
+      charts.costTime.data.datasets[0].backgroundColor=(cssVar('--accent-dim')||'rgba(34,197,94,0.1)');
+      charts.costTime.update('none');
+    } else {
+      charts.costTime=new Chart(canvas,{
+        type:'line',data:{labels:labels,datasets:[{
+          label:'Cost',data:data,
+          borderColor:cssVar('--accent')||'#22c55e',
+          backgroundColor:(cssVar('--accent-dim')||'rgba(34,197,94,0.1)'),
+          fill:true,tension:0.3,pointRadius:3,pointHoverRadius:5,borderWidth:2
+        }]},
+        options:{responsive:true,maintainAspectRatio:false,animation:false,
+          scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:20}},
+            y:{beginAtZero:true,ticks:{callback:function(v){return formatCost(v);}}}},
+          plugins:{tooltip:{callbacks:{label:function(c){return formatCost(c.raw);}}}}}
+      });
+    }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -229,20 +261,26 @@
     var values=TOKEN_KEYS.map(function(k){return t[k]||0;});
     var colors=TOKEN_KEYS.map(function(k){return TOKEN_COLORS[k];});
     var labels=TOKEN_KEYS.map(function(k){return TOKEN_LABELS[k];});
-    if(charts.comp)charts.comp.destroy();
-    charts.comp=new Chart(canvas,{
-      type:'doughnut',data:{labels:labels,datasets:[{
-        data:values,backgroundColor:colors,
-        borderColor:cssVar('--surface')||'#141416',borderWidth:3,hoverOffset:6
-      }]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
-        plugins:{legend:{display:true,position:'bottom',
-          labels:{boxWidth:10,padding:12,font:{size:11},color:cssVar('--text-2')||'#a0a0ab'}},
-          tooltip:{callbacks:{label:function(c){
-            var pct=(c.raw/tt*100).toFixed(1);
-            return c.label+': '+formatTokens(c.raw)+' ('+pct+'%)';
-          }}}}}
-    });
+    if(charts.comp){
+      charts.comp.data.labels=labels;
+      charts.comp.data.datasets[0].data=values;
+      charts.comp.data.datasets[0].backgroundColor=colors;
+      charts.comp.update('none');
+    } else {
+      charts.comp=new Chart(canvas,{
+        type:'doughnut',data:{labels:labels,datasets:[{
+          data:values,backgroundColor:colors,
+          borderColor:cssVar('--surface')||'#141416',borderWidth:3,hoverOffset:6
+        }]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:'58%',animation:false,
+          plugins:{legend:{display:true,position:'bottom',
+            labels:{boxWidth:10,padding:12,font:{size:11},color:cssVar('--text-2')||'#a0a0ab'}},
+            tooltip:{callbacks:{label:function(c){
+              var pct=(c.raw/tt*100).toFixed(1);
+              return c.label+': '+formatTokens(c.raw)+' ('+pct+'%)';
+            }}}}}
+      });
+    }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -281,19 +319,26 @@
     var labels=top.map(function(r){var lbl=r.label||r.key;return lbl.length>maxLabelLen?lbl.substring(0,maxLabelLen)+'…':lbl;});
     var values=top.map(function(r){return r[valueKey]||0;});
     var cls=top.map(function(_,i){return colors[i%colors.length];});
-    if(charts[canvasId])charts[canvasId].destroy();
-    charts[canvasId]=new Chart(canvas,{
-      type:'bar',data:{labels:labels,datasets:[{
-        data:values,
-        backgroundColor:cls.map(function(c){return c+'bb';}),
-        borderColor:cls,borderWidth:1,borderRadius:4,borderSkipped:false
-      }]},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        layout:{padding:{left:4}},
-        scales:{x:{beginAtZero:true,ticks:{callback:tipFn.tick||function(v){return v;}}},
-          y:{grid:{display:false},ticks:{font:{size:11,weight:'500'},autoSkipPadding:12}}},
-        plugins:{tooltip:{callbacks:{label:function(c){return tipFn.tip(c.raw,top[c.dataIndex]);}}}}}
-    });
+    if(charts[canvasId]){
+      charts[canvasId].data.labels=labels;
+      charts[canvasId].data.datasets[0].data=values;
+      charts[canvasId].data.datasets[0].backgroundColor=cls.map(function(c){return c+'bb';});
+      charts[canvasId].data.datasets[0].borderColor=cls;
+      charts[canvasId].update('none');
+    } else {
+      charts[canvasId]=new Chart(canvas,{
+        type:'bar',data:{labels:labels,datasets:[{
+          data:values,
+          backgroundColor:cls.map(function(c){return c+'bb';}),
+          borderColor:cls,borderWidth:1,borderRadius:4,borderSkipped:false
+        }]},
+        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,
+          layout:{padding:{left:4}},
+          scales:{x:{beginAtZero:true,ticks:{callback:tipFn.tick||function(v){return v;}}},
+            y:{grid:{display:false},ticks:{font:{size:11,weight:'500'},autoSkipPadding:12}}},
+          plugins:{tooltip:{callbacks:{label:function(c){return tipFn.tip(c.raw,top[c.dataIndex]);}}}}}
+      });
+    }
   }
 
   function renderCostModel(rows) {
@@ -329,19 +374,24 @@
     showEmpty('emptyActivity',true);
     var labels=rows.map(function(r){return r.label;});
     var counts=rows.map(function(r){return r.sessions||0;});
-    if(charts.activity)charts.activity.destroy();
-    charts.activity=new Chart(canvas,{
-      type:'bar',data:{labels:labels,datasets:[{
-        label:'Sessions',data:counts,
-        backgroundColor:(cssVar('--blue-dim')||'rgba(59,130,246,0.2)'),
-        borderColor:cssVar('--blue')||'#3b82f6',
-        borderWidth:1,borderRadius:3,borderSkipped:false
-      }]},
-      options:{responsive:true,maintainAspectRatio:false,
-        scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:20}},
-          y:{beginAtZero:true,ticks:{stepSize:1}}},
-        plugins:{tooltip:{callbacks:{label:function(c){return c.raw+' sessions';}}}}}
-    });
+    if(charts.activity){
+      charts.activity.data.labels=labels;
+      charts.activity.data.datasets[0].data=counts;
+      charts.activity.update('none');
+    } else {
+      charts.activity=new Chart(canvas,{
+        type:'bar',data:{labels:labels,datasets:[{
+          label:'Sessions',data:counts,
+          backgroundColor:(cssVar('--blue-dim')||'rgba(59,130,246,0.2)'),
+          borderColor:cssVar('--blue')||'#3b82f6',
+          borderWidth:1,borderRadius:3,borderSkipped:false
+        }]},
+        options:{responsive:true,maintainAspectRatio:false,animation:false,
+          scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:20}},
+            y:{beginAtZero:true,ticks:{stepSize:1}}},
+          plugins:{tooltip:{callbacks:{label:function(c){return c.raw+' sessions';}}}}}
+      });
+    }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -395,29 +445,31 @@
     var bounds=rangeBounds(range);
     fetchJSON('/api/sessions?limit=20&sort=updated&from='+bounds.from+'&to='+bounds.to)
       .then(function(data){
-        var items=data.items||[];
-        var tbody=$('tbodySessions');
-        if(!items.length){showEmpty('emptyTableSessions',false);tbody.innerHTML='';$('sessionCount').textContent='';return;}
-        showEmpty('emptyTableSessions',true);
-        $('sessionCount').textContent=data.total+' total';
-        var html='';
-        items.forEach(function(s){
-          var tt=totalTokens(s.tokens);
-          var isFree=(s.model||'').indexOf('-free')>-1;
-          var created=new Date(s.created_at);
-          var dateStr=created.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+created.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-          html+='<tr>'
-            +'<td class="session-title" title="'+esc(s.title||'')+'">'+esc(cleanTitle(s.title, created))+'</td>'
-            +'<td><span class="tag '+(isFree?'tag--free':'tag--paid')+'">'+esc(shortModel(s.model))+'</span></td>'
-            +'<td style="font-size:12px;color:var(--text-3)">'+esc(s.agent||'—')+'</td>'
-            +'<td class="num">'+formatTokens(s.tokens.input)+'</td>'
-            +'<td class="num">'+formatTokens(s.tokens.output)+'</td>'
-            +'<td class="num" style="color:var(--text);font-weight:600">'+formatTokens(tt)+'</td>'
-            +'<td class="num cost">'+formatCost(s.cost)+'</td>'
-            +'<td class="session-date">'+dateStr+'</td>'
-            +'</tr>';
+        scheduleUpdate(function() {
+          var items=data.items||[];
+          var tbody=$('tbodySessions');
+          if(!items.length){showEmpty('emptyTableSessions',false);tbody.innerHTML='';$('sessionCount').textContent='';return;}
+          showEmpty('emptyTableSessions',true);
+          $('sessionCount').textContent=data.total+' total';
+          var html='';
+          items.forEach(function(s){
+            var tt=totalTokens(s.tokens);
+            var isFree=(s.model||'').indexOf('-free')>-1;
+            var created=new Date(s.created_at);
+            var dateStr=created.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+created.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+            html+='<tr>'
+              +'<td class="session-title" title="'+esc(s.title||'')+'">'+esc(cleanTitle(s.title, created))+'</td>'
+              +'<td><span class="tag '+(isFree?'tag--free':'tag--paid')+'">'+esc(shortModel(s.model))+'</span></td>'
+              +'<td style="font-size:12px;color:var(--text-3)">'+esc(s.agent||'—')+'</td>'
+              +'<td class="num">'+formatTokens(s.tokens.input)+'</td>'
+              +'<td class="num">'+formatTokens(s.tokens.output)+'</td>'
+              +'<td class="num" style="color:var(--text);font-weight:600">'+formatTokens(tt)+'</td>'
+              +'<td class="num cost">'+formatCost(s.cost)+'</td>'
+              +'<td class="session-date">'+dateStr+'</td>'
+              +'</tr>';
+          });
+          tbody.innerHTML=html;
         });
-        tbody.innerHTML=html;
       })
       .catch(function(){});
   }
@@ -452,29 +504,33 @@
       .then(function(summary) {
         if (mySeq !== seq) return;
         lastSummary = summary;
-        renderStats(summary);
-        /* Hide cost-only sections when all models are free */
-        var costSections=document.querySelectorAll('[data-cost-section]');
-        var hasCost=summary.totals.cost>0;
-        costSections.forEach(function(el){el.style.display=hasCost?'':'none';});
-        renderComposition(summary);
-        renderEfficiency(summary);
-        renderCostModel(summary.by_model);
-        renderTokensModel(summary.by_model);
-        renderProject(summary.by_project);
-        renderAgent(summary.by_agent);
-        renderBreakdownTable('tbodyModels','emptyTableModels','modelCount',summary.by_model,'cost');
-        renderBreakdownTable('tbodyProjects','emptyTableProjects','projectCount',summary.by_project,'cost');
-        renderBreakdownTable('tbodyAgents','emptyTableAgents','agentCount',summary.by_agent,'cost');
+        scheduleUpdate(function() {
+          renderStats(summary);
+          /* Hide cost-only sections when all models are free */
+          var costSections=document.querySelectorAll('[data-cost-section]');
+          var hasCost=summary.totals.cost>0;
+          costSections.forEach(function(el){el.style.display=hasCost?'':'none';});
+          renderComposition(summary);
+          renderEfficiency(summary);
+          if (!lazyCharts.costModelGrid) renderCostModel(summary.by_model);
+          renderTokensModel(summary.by_model);
+          renderProject(summary.by_project);
+          renderAgent(summary.by_agent);
+          renderBreakdownTable('tbodyModels','emptyTableModels','modelCount',summary.by_model,'cost');
+          renderBreakdownTable('tbodyProjects','emptyTableProjects','projectCount',summary.by_project,'cost');
+          renderBreakdownTable('tbodyAgents','emptyTableAgents','agentCount',summary.by_agent,'cost');
+        });
         renderSessions();
         return fetchJSON('/api/breakdown?group_by=' + range.groupBy + '&' + q);
       })
       .then(function(data) {
         if (mySeq !== seq) return;
         lastTimeRows = sorted(data.rows);
-        renderTimeSeries(lastTimeRows);
-        renderCostTime(lastTimeRows);
-        renderActivity(lastTimeRows);
+        scheduleUpdate(function() {
+          renderTimeSeries(lastTimeRows);
+          if (!lazyCharts.sectionCostTime) renderCostTime(lastTimeRows);
+          if (!lazyCharts.sectionActivity) renderActivity(lastTimeRows);
+        });
         lastSuccessAt = new Date();
         setLive();
         hideError();
@@ -501,9 +557,8 @@
      ══════════════════════════════════════════════════════════ */
   var themeChangePending = false;
   function onThemeChange() {
+    invalidateCssCache();
     applyDefaults();
-    /* If a refresh is in flight, defer the re-render to avoid
-       destroying charts that the in-flight refresh is about to create. */
     if (inFlight) { themeChangePending = true; return; }
     destroyAll();
     refresh();
@@ -533,6 +588,29 @@
       attributes: true, attributeFilter: ['data-theme']
     });
   }
+
+  var lazyCharts = {};
+  var lazyObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var id = entry.target.id;
+        if (lazyCharts[id]) {
+          lazyCharts[id]();
+          delete lazyCharts[id];
+        }
+        lazyObserver.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: '200px' });
+
+  lazyCharts.sectionCostTime = function() { if (lastTimeRows) renderCostTime(lastTimeRows); };
+  lazyCharts.sectionActivity = function() { if (lastTimeRows) renderActivity(lastTimeRows); };
+  lazyCharts.costModelGrid = function() { if (lastSummary) renderCostModel(lastSummary.by_model); };
+
+  ['sectionCostTime', 'costModelGrid', 'sectionActivity'].forEach(function(id) {
+    var el = $(id);
+    if (el) lazyObserver.observe(el);
+  });
 
   refresh();
   startPolling();
