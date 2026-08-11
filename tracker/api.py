@@ -287,19 +287,21 @@ def create_app(config: Config) -> FastAPI:
             include_empty=include_empty,
         )
         projects = fetch_projects(conn)
+        total = len(all_sessions)
+
         if sort == "cost":
+            # Sorting by cost requires computing every session's cost first.
             costs = [compute_cost(s, config.pricing) for s in all_sessions]
             order = sorted(
                 range(len(all_sessions)),
                 key=lambda i: (-costs[i][0], -all_sessions[i].updated_ms, all_sessions[i].id),
             )
             all_sessions = [all_sessions[i] for i in order]
-            page_costs = [costs[i] for i in order]
-        else:
-            page_costs = [compute_cost(s, config.pricing) for s in all_sessions]
-        total = len(all_sessions)
+
+        # Slice to the page BEFORE computing costs in the default path, so we
+        # only price the sessions we actually return.
         page = all_sessions[offset : offset + limit] if limit is not None else all_sessions[offset:]
-        page_costs = page_costs[offset : offset + limit] if limit is not None else page_costs[offset:]
+        page_costs = [compute_cost(s, config.pricing) for s in page]
         return {
             "total": total,
             "items": [
