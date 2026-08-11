@@ -61,6 +61,7 @@ def resolve_db_path(config: Config) -> Path:
 def _set_pragmas(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA busy_timeout = 5000")
     conn.execute("PRAGMA query_only = ON")
+    conn.row_factory = sqlite3.Row
 
 
 def _force_open(conn: sqlite3.Connection) -> None:

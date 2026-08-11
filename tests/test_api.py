@@ -278,7 +278,7 @@ def test_export_csv_header_and_injection_guard(tmp_path):
     assert paid[2] == "/"
     assert paid[3] == "openai/gpt-4o"
     assert paid[4] == "architect"
-    assert paid[12] == "3.825"
+    assert paid[12] == "3.8250"
     assert paid[13] == "false"
 
 

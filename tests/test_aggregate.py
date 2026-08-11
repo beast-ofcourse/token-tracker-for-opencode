@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from conftest import fixture_config
+from conftest import fixture_config, row_conn
 
 from tracker.aggregate import format_cost, month_bounds, month_bounds_for, summarize
 from tracker.config import Budget, Price, Severity
@@ -32,7 +32,7 @@ def _now() -> datetime:
 def _load(tmp_path):
     """All 12 fixture sessions (empty one included), project map, and pricing."""
     cfg = fixture_config(tmp_path)
-    conn = sqlite3.connect(cfg.db_path)
+    conn = row_conn(cfg.db_path)
     try:
         sessions = fetch_sessions(conn, include_empty=True)
         projects = fetch_projects(conn)

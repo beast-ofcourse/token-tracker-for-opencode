@@ -17,6 +17,18 @@ import pytest
 
 from tracker.config import Budget, Config, DEFAULT_PRICING, Price, Severity
 
+
+def row_conn(db_path) -> sqlite3.Connection:
+    """A read connection with row_factory set, mirroring tracker.db.open_connection.
+
+    Tests that feed rows into ``fetch_sessions``/``fetch_projects``/
+    ``fetch_messages`` need Row objects (those helpers read columns by name);
+    without this they would receive plain tuples and raise TypeError.
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 # --- Model JSON blobs (as stored in the `session.model` column) -----------
 
 MODEL_FREE = {"id": "deepseek-v4-flash-free", "providerID": "opencode", "variant": "high"}

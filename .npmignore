@@ -1,0 +1,14 @@
+# Python bytecode (was leaking into the npm tarball)
+__pycache__/
+*.pyc
+*.pyo
+
+# Dev/test artifacts
+tests/
+.pytest_cache/
+.github/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store

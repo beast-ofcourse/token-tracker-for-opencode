@@ -13,23 +13,30 @@ takes precedence over the dashboard.
 
 from __future__ import annotations
 
-import csv
-import io
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Query, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from tracker import __version__
 from tracker.aggregate import month_bounds, summarize
 from tracker.config import Config, Price
-from tracker.csvutil import csv_safe
+from tracker.csvutil import render_sessions_csv
 from tracker.db import open_connection
 from tracker.pricing import compute_cost
-from tracker.store import TOKEN_KEYS, Session, fetch_messages, fetch_projects, fetch_sessions
+from tracker.store import (
+    TOKEN_KEYS,
+    Session,
+    fetch_messages,
+    fetch_projects,
+    fetch_session,
+    fetch_sessions,
+)
 
 
 class DbUnavailableError(Exception):
@@ -46,7 +53,7 @@ def _session_dict(session: Session, projects: dict[str, str], cost: float, unpri
     return {
         "id": session.id,
         "title": session.title,
-        "project": projects.get(session.project_id),
+        "project": projects.get(session.project_id) if session.project_id else None,
         "model": session.model_key,
         "agent": session.agent,
         "tokens": dict(session.tokens),
@@ -55,14 +62,6 @@ def _session_dict(session: Session, projects: dict[str, str], cost: float, unpri
         "created_at": _iso(session.created_ms),
         "updated_at": _iso(session.updated_ms),
     }
-
-
-def _find_session(conn: sqlite3.Connection, session_id: str) -> Session | None:
-    """Look up a session by id, or None. Includes empty/aborted sessions."""
-    return next(
-        (s for s in fetch_sessions(conn, include_empty=True) if s.id == session_id),
-        None,
-    )
 
 
 def _time_bucket_rows(
@@ -112,7 +111,7 @@ def _time_bucket_rows(
 
 def create_app(config: Config) -> FastAPI:
     """Build the FastAPI app serving the tracker's read-only API."""
-    app = FastAPI(title="OpenCode Token Tracker", version="0.1.0")
+    app = FastAPI(title="OpenCode Token Tracker", version=__version__)
 
     @app.exception_handler(DbUnavailableError)
     def _db_unavailable(request: Request, exc: DbUnavailableError) -> JSONResponse:
@@ -288,17 +287,19 @@ def create_app(config: Config) -> FastAPI:
             include_empty=include_empty,
         )
         projects = fetch_projects(conn)
-        costs = [compute_cost(s, config.pricing) for s in all_sessions]
         if sort == "cost":
+            costs = [compute_cost(s, config.pricing) for s in all_sessions]
             order = sorted(
                 range(len(all_sessions)),
                 key=lambda i: (-costs[i][0], -all_sessions[i].updated_ms, all_sessions[i].id),
             )
             all_sessions = [all_sessions[i] for i in order]
-            costs = [costs[i] for i in order]
+            page_costs = [costs[i] for i in order]
+        else:
+            page_costs = [compute_cost(s, config.pricing) for s in all_sessions]
         total = len(all_sessions)
         page = all_sessions[offset : offset + limit] if limit is not None else all_sessions[offset:]
-        page_costs = costs[offset : offset + limit] if limit is not None else costs[offset:]
+        page_costs = page_costs[offset : offset + limit] if limit is not None else page_costs[offset:]
         return {
             "total": total,
             "items": [
@@ -313,7 +314,7 @@ def create_app(config: Config) -> FastAPI:
         conn: sqlite3.Connection = Depends(get_db),
     ) -> dict:
         """One session plus its message count; 404 when the id is unknown."""
-        session = _find_session(conn, session_id)
+        session = fetch_session(conn, session_id)
         if session is None:
             return JSONResponse(
                 status_code=404, content={"error": f"session '{session_id}' not found"}
@@ -332,7 +333,7 @@ def create_app(config: Config) -> FastAPI:
         conn: sqlite3.Connection = Depends(get_db),
     ) -> dict:
         """A session's messages in insertion order; 404 when the session is unknown."""
-        if _find_session(conn, session_id) is None:
+        if fetch_session(conn, session_id) is None:
             return JSONResponse(
                 status_code=404, content={"error": f"session '{session_id}' not found"}
             )
@@ -372,44 +373,21 @@ def create_app(config: Config) -> FastAPI:
             include_empty=include_empty,
         )
         projects = fetch_projects(conn)
-        buffer = io.StringIO()
-        writer = csv.writer(buffer)
-        writer.writerow(
-            [
-                "id", "title", "project", "model", "agent",
-                "created_at", "updated_at",
-                "tokens_input", "tokens_output", "tokens_reasoning",
-                "tokens_cache_read", "tokens_cache_write",
-                "cost", "unpriced",
-            ]
-        )
-        for session in sessions:
-            cost, unpriced = compute_cost(session, config.pricing)
-            writer.writerow(
-                [
-                    csv_safe(session.id),
-                    csv_safe(session.title),
-                    csv_safe(projects.get(session.project_id)),
-                    csv_safe(session.model_key),
-                    csv_safe(session.agent),
-                    _iso(session.created_ms),
-                    _iso(session.updated_ms),
-                    session.tokens["input"],
-                    session.tokens["output"],
-                    session.tokens["reasoning"],
-                    session.tokens["cache_read"],
-                    session.tokens["cache_write"],
-                    cost,
-                    "true" if unpriced else "false",
-                ]
-            )
         return Response(
-            content=buffer.getvalue(),
+            content=render_sessions_csv(sessions, projects, config.pricing),
             media_type="text/csv",
             headers={"Content-Disposition": 'attachment; filename="sessions.csv"'},
         )
 
     # Static dashboard. Mounted LAST so every /api route above wins over it.
-    app.mount("/", StaticFiles(directory="web", html=True), name="web")
+    # Resolved from the package location so `tracker serve` works from any CWD
+    # (e.g. when installed globally via npm), not just the repo root.
+    web_dir = Path(__file__).resolve().parent.parent / "web"
+    if not web_dir.is_dir():
+        raise RuntimeError(
+            f"web dashboard directory not found at {web_dir}; "
+            "install the package completely (the `web/` folder is required)."
+        )
+    app.mount("/", StaticFiles(directory=str(web_dir), html=True), name="web")
 
     return app

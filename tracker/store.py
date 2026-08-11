@@ -70,32 +70,41 @@ def parse_model(model_json: str | None) -> tuple[str, str | None]:
 
 
 def _row_to_session(row: sqlite3.Row) -> Session:
-    """Convert a `session` SELECT row (column order below) into a Session."""
-    model_key, model_variant = parse_model(row[3])
+    """Convert a `session` SELECT row into a Session."""
+    model_key, model_variant = parse_model(row["model"])
     return Session(
-        id=row[0],
-        project_id=row[1],
-        title=row[2],
+        id=row["id"],
+        project_id=row["project_id"],
+        title=row["title"],
         model_key=model_key,
         model_variant=model_variant,
-        agent=row[4],
-        cost_db=row[5] or 0.0,
+        agent=row["agent"],
+        cost_db=row["cost"] or 0.0,
         tokens={
-            "input": row[6] or 0,
-            "output": row[7] or 0,
-            "reasoning": row[8] or 0,
-            "cache_read": row[9] or 0,
-            "cache_write": row[10] or 0,
+            "input": row["tokens_input"] or 0,
+            "output": row["tokens_output"] or 0,
+            "reasoning": row["tokens_reasoning"] or 0,
+            "cache_read": row["tokens_cache_read"] or 0,
+            "cache_write": row["tokens_cache_write"] or 0,
         },
-        created_ms=row[11] or 0,
-        updated_ms=row[12] or 0,
-        archived_ms=row[13],
+        created_ms=row["time_created"] or 0,
+        updated_ms=row["time_updated"] or 0,
+        archived_ms=row["time_archived"],
     )
 
 
 def _is_empty_session(row: sqlite3.Row) -> bool:
     """True for an aborted session: NULL model and all five token buckets 0."""
-    return row[3] is None and not any(row[6:11])
+    return row["model"] is None and not any(
+        row[k]
+        for k in (
+            "tokens_input",
+            "tokens_output",
+            "tokens_reasoning",
+            "tokens_cache_read",
+            "tokens_cache_write",
+        )
+    )
 
 
 _SESSION_COLUMNS = (
@@ -170,10 +179,18 @@ def fetch_sessions(
     return sessions
 
 
+def fetch_session(conn: sqlite3.Connection, session_id: str) -> Session | None:
+    """Look up one session by id, or None. Includes empty/aborted sessions by construction."""
+    row = conn.execute(
+        f"SELECT {_SESSION_COLUMNS} FROM session WHERE id = ?", (session_id,)
+    ).fetchone()
+    return _row_to_session(row) if row is not None else None
+
+
 def fetch_projects(conn: sqlite3.Connection) -> dict[str, str]:
     """Map `project_id` to its worktree path, falling back to the name."""
     return {
-        row[0]: row[1] or row[2]
+        row["id"]: row["worktree"] or row["name"]
         for row in conn.execute("SELECT id, worktree, name FROM project").fetchall()
     }
 
@@ -192,7 +209,7 @@ def fetch_messages(conn: sqlite3.Connection, session_id: str) -> list[Message]:
     ).fetchall()
     for row in rows:
         try:
-            data = json.loads(row[1])
+            data = json.loads(row["data"])
         except (json.JSONDecodeError, TypeError):
             continue
         if not isinstance(data, dict):
@@ -211,7 +228,7 @@ def fetch_messages(conn: sqlite3.Connection, session_id: str) -> list[Message]:
             model_key = "unknown"
         messages.append(
             Message(
-                id=row[0],
+                id=row["id"],
                 role=data.get("role"),
                 model_key=model_key,
                 tokens={
