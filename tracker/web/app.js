@@ -129,7 +129,8 @@
     Chart.defaults.plugins.tooltip.padding=10;
     Chart.defaults.plugins.tooltip.cornerRadius=8;
     Chart.defaults.plugins.tooltip.boxPadding=4;
-    Object.assign(Chart.defaults.scale.grid,{color:brd,drawBorder:false});
+    Object.assign(Chart.defaults.scale.grid,{color:brd});
+    Chart.defaults.scale.border.display=false;
     Object.assign(Chart.defaults.scale.ticks,{color:t3,font:{size:10}});
   }
 
@@ -274,7 +275,7 @@
     var filtered=(rows||[]).filter(function(r){return(r[valueKey]||0)>0;});
     if(!filtered.length){showEmpty(emptyId,false);if(charts[canvasId]){charts[canvasId].destroy();charts[canvasId]=null;}return;}
     showEmpty(emptyId,true);
-    var top=byCost(filtered).slice(0,10);
+    var top=filtered.slice().sort(function(a,b){return (b[valueKey]||0)-(a[valueKey]||0);}).slice(0,10);
     var isMobile=window.innerWidth<600;
     var maxLabelLen=isMobile?20:35;
     var labels=top.map(function(r){var lbl=r.label||r.key;return lbl.length>maxLabelLen?lbl.substring(0,maxLabelLen)+'…':lbl;});
@@ -429,16 +430,15 @@
   function esc(s) {
     var d = document.createElement('div');
     d.textContent = s;
-    return d.innerHTML;
+    return d.innerHTML.replace(/"/g, '&quot;');
   }
 
   /* ══════════════════════════════════════════════════════════
      MAIN FETCH + RENDER CYCLE
      ══════════════════════════════════════════════════════════ */
   function refresh() {
-    if (inFlight) return;
-    inFlight = true;
     var mySeq = ++seq;
+    inFlight = true;
     var range = RANGES[currentRange];
     var bounds = rangeBounds(range);
     var q = 'from=' + bounds.from + '&to=' + bounds.to;

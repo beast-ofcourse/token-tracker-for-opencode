@@ -26,3 +26,6 @@ version = {attr = "tracker.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["tracker*"]
+
+[tool.setuptools.package-data]
+tracker = ["web/*", "web/vendor/fonts/*", "web/vendor/js/*"]

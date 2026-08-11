@@ -141,7 +141,7 @@ def test_month_bounds_for_arg_rejects_malformed():
 
 
 def test_month_bounds_for_arg_respects_reset_day():
-    # With reset_day=15, the "July" window starts 2026-06-15 and ends 2026-07-15.
+    # With reset_day=15, the "July" window runs 2026-07-15 through 2026-08-15.
     start, end = _month_bounds_for_arg("2026-07", reset_day=15)
-    assert start == 1_784_073_600_000  # 2026-06-15 00:00:00 UTC
-    assert end == 1_786_752_000_000  # 2026-07-15 00:00:00 UTC
+    assert start == 1_784_073_600_000  # 2026-07-15 00:00:00 UTC
+    assert end == 1_786_752_000_000  # 2026-08-15 00:00:00 UTC

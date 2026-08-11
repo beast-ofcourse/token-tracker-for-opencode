@@ -147,9 +147,8 @@ python -m pytest                 # run tests
 
 ## Project structure
 
-```
-tracker/          Python package (CLI, API, DB, pricing, aggregation)
-web/              Static dashboard (HTML, CSS, JS, vendored Chart.js + fonts)
+```text
+tracker/          Python package (CLI, API, DB, pricing, aggregation, dashboard)
 bin/tracker.js    npm wrapper entry point
 config.example.json
 ```

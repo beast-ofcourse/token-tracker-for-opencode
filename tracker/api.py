@@ -383,8 +383,9 @@ def create_app(config: Config) -> FastAPI:
 
     # Static dashboard. Mounted LAST so every /api route above wins over it.
     # Resolved from the package location so `tracker serve` works from any CWD
-    # (e.g. when installed globally via npm), not just the repo root.
-    web_dir = Path(__file__).resolve().parent.parent / "web"
+    # and from any install mode (source checkout, pip wheel, npm bundle) —
+    # package-data ships the assets inside the `tracker` package.
+    web_dir = Path(__file__).resolve().parent / "web"
     if not web_dir.is_dir():
         raise RuntimeError(
             f"web dashboard directory not found at {web_dir}; "
