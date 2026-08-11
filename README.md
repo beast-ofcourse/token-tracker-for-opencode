@@ -1,5 +1,9 @@
 ﻿# Token Tracker for OpenCode
 
+[![Version](https://img.shields.io/npm/v/opencode-token-tracker-cli)](https://www.npmjs.com/package/opencode-token-tracker-cli)
+[![Downloads](https://img.shields.io/npm/dm/opencode-token-tracker-cli)](https://www.npmjs.com/package/opencode-token-tracker-cli)
+[![CI](https://img.shields.io/github/actions/workflow/status/beast-ofcourse/token-tracker-for-opencode/ci.yml)](https://github.com/beast-ofcourse/token-tracker-for-opencode/actions)
+
 A local, read-only dashboard and CLI that tracks OpenCode's token usage, cost, and budget — directly from OpenCode's own SQLite database. No plugins, no hooks, no cloud.
 
 ![Dashboard dark theme](dashboard-dark-check.png)

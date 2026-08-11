@@ -1,6 +1,6 @@
 ﻿{
   "name": "opencode-token-tracker-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local, read-only dashboard and CLI for OpenCode token usage, spend, and budget",
   "keywords": ["opencode", "tokens", "usage", "dashboard", "cli", "sqlite"],
   "license": "MIT",
