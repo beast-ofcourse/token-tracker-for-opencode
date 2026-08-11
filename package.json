@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "opencode-token-tracker-cli",
   "version": "0.3.0",
   "description": "Local, read-only dashboard and CLI for OpenCode token usage, spend, and budget",

@@ -445,29 +445,31 @@ function invalidateCssCache() { cssVarCache = {}; }
     var bounds=rangeBounds(range);
     fetchJSON('/api/sessions?limit=20&sort=updated&from='+bounds.from+'&to='+bounds.to)
       .then(function(data){
-        var items=data.items||[];
-        var tbody=$('tbodySessions');
-        if(!items.length){showEmpty('emptyTableSessions',false);tbody.innerHTML='';$('sessionCount').textContent='';return;}
-        showEmpty('emptyTableSessions',true);
-        $('sessionCount').textContent=data.total+' total';
-        var html='';
-        items.forEach(function(s){
-          var tt=totalTokens(s.tokens);
-          var isFree=(s.model||'').indexOf('-free')>-1;
-          var created=new Date(s.created_at);
-          var dateStr=created.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+created.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-          html+='<tr>'
-            +'<td class="session-title" title="'+esc(s.title||'')+'">'+esc(cleanTitle(s.title, created))+'</td>'
-            +'<td><span class="tag '+(isFree?'tag--free':'tag--paid')+'">'+esc(shortModel(s.model))+'</span></td>'
-            +'<td style="font-size:12px;color:var(--text-3)">'+esc(s.agent||'—')+'</td>'
-            +'<td class="num">'+formatTokens(s.tokens.input)+'</td>'
-            +'<td class="num">'+formatTokens(s.tokens.output)+'</td>'
-            +'<td class="num" style="color:var(--text);font-weight:600">'+formatTokens(tt)+'</td>'
-            +'<td class="num cost">'+formatCost(s.cost)+'</td>'
-            +'<td class="session-date">'+dateStr+'</td>'
-            +'</tr>';
+        scheduleUpdate(function() {
+          var items=data.items||[];
+          var tbody=$('tbodySessions');
+          if(!items.length){showEmpty('emptyTableSessions',false);tbody.innerHTML='';$('sessionCount').textContent='';return;}
+          showEmpty('emptyTableSessions',true);
+          $('sessionCount').textContent=data.total+' total';
+          var html='';
+          items.forEach(function(s){
+            var tt=totalTokens(s.tokens);
+            var isFree=(s.model||'').indexOf('-free')>-1;
+            var created=new Date(s.created_at);
+            var dateStr=created.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+created.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+            html+='<tr>'
+              +'<td class="session-title" title="'+esc(s.title||'')+'">'+esc(cleanTitle(s.title, created))+'</td>'
+              +'<td><span class="tag '+(isFree?'tag--free':'tag--paid')+'">'+esc(shortModel(s.model))+'</span></td>'
+              +'<td style="font-size:12px;color:var(--text-3)">'+esc(s.agent||'—')+'</td>'
+              +'<td class="num">'+formatTokens(s.tokens.input)+'</td>'
+              +'<td class="num">'+formatTokens(s.tokens.output)+'</td>'
+              +'<td class="num" style="color:var(--text);font-weight:600">'+formatTokens(tt)+'</td>'
+              +'<td class="num cost">'+formatCost(s.cost)+'</td>'
+              +'<td class="session-date">'+dateStr+'</td>'
+              +'</tr>';
+          });
+          tbody.innerHTML=html;
         });
-        tbody.innerHTML=html;
       })
       .catch(function(){});
   }
@@ -502,29 +504,33 @@ function invalidateCssCache() { cssVarCache = {}; }
       .then(function(summary) {
         if (mySeq !== seq) return;
         lastSummary = summary;
-        renderStats(summary);
-        /* Hide cost-only sections when all models are free */
-        var costSections=document.querySelectorAll('[data-cost-section]');
-        var hasCost=summary.totals.cost>0;
-        costSections.forEach(function(el){el.style.display=hasCost?'':'none';});
-        renderComposition(summary);
-        renderEfficiency(summary);
-        renderCostModel(summary.by_model);
-        renderTokensModel(summary.by_model);
-        renderProject(summary.by_project);
-        renderAgent(summary.by_agent);
-        renderBreakdownTable('tbodyModels','emptyTableModels','modelCount',summary.by_model,'cost');
-        renderBreakdownTable('tbodyProjects','emptyTableProjects','projectCount',summary.by_project,'cost');
-        renderBreakdownTable('tbodyAgents','emptyTableAgents','agentCount',summary.by_agent,'cost');
+        scheduleUpdate(function() {
+          renderStats(summary);
+          /* Hide cost-only sections when all models are free */
+          var costSections=document.querySelectorAll('[data-cost-section]');
+          var hasCost=summary.totals.cost>0;
+          costSections.forEach(function(el){el.style.display=hasCost?'':'none';});
+          renderComposition(summary);
+          renderEfficiency(summary);
+          if (!lazyCharts.costModelGrid) renderCostModel(summary.by_model);
+          renderTokensModel(summary.by_model);
+          renderProject(summary.by_project);
+          renderAgent(summary.by_agent);
+          renderBreakdownTable('tbodyModels','emptyTableModels','modelCount',summary.by_model,'cost');
+          renderBreakdownTable('tbodyProjects','emptyTableProjects','projectCount',summary.by_project,'cost');
+          renderBreakdownTable('tbodyAgents','emptyTableAgents','agentCount',summary.by_agent,'cost');
+        });
         renderSessions();
         return fetchJSON('/api/breakdown?group_by=' + range.groupBy + '&' + q);
       })
       .then(function(data) {
         if (mySeq !== seq) return;
         lastTimeRows = sorted(data.rows);
-        renderTimeSeries(lastTimeRows);
-        renderCostTime(lastTimeRows);
-        renderActivity(lastTimeRows);
+        scheduleUpdate(function() {
+          renderTimeSeries(lastTimeRows);
+          if (!lazyCharts.sectionCostTime) renderCostTime(lastTimeRows);
+          if (!lazyCharts.sectionActivity) renderActivity(lastTimeRows);
+        });
         lastSuccessAt = new Date();
         setLive();
         hideError();
@@ -596,6 +602,10 @@ function invalidateCssCache() { cssVarCache = {}; }
       }
     });
   }, { rootMargin: '200px' });
+
+  lazyCharts.sectionCostTime = function() { if (lastTimeRows) renderCostTime(lastTimeRows); };
+  lazyCharts.sectionActivity = function() { if (lastTimeRows) renderActivity(lastTimeRows); };
+  lazyCharts.costModelGrid = function() { if (lastSummary) renderCostModel(lastSummary.by_model); };
 
   ['sectionCostTime', 'costModelGrid', 'sectionActivity'].forEach(function(id) {
     var el = $(id);
