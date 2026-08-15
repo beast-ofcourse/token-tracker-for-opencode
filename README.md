@@ -9,13 +9,19 @@ A local, read-only dashboard and CLI that tracks OpenCode's token usage, cost, a
 
 ![Dashboard dark theme](dashboard-dark-check.png)
 
+### Theme showcase
+
+| Dark | Light | Brutalist Maximalist |
+|------|-------|----------------------|
+| ![Dark theme](assets/dark-theme.png) | ![Light theme](assets/light-theme.png) | ![Brutalist Maximalist theme](assets/brutalist-theme.png) |
+
 ## Why this exists
 
 OpenCode stores detailed session data in a local SQLite database, but there's no built-in way to see how much you're spending across sessions, models, and projects. Token Tracker reads that database and turns it into a clean dashboard with cost tracking, budget alerts, and per-model breakdowns.
 
 ## Features
 
-- **Web dashboard** — dark/light theme, auto-refreshes every 30s, responsive on mobile
+- **Web dashboard** — dark / light / brutalist-maximalist themes, auto-refreshes every 30s, responsive on mobile
 - **Stacked token charts** — input, output, reasoning, cache read/write over time
 - **Cost tracking** — per-model and per-project cost breakdowns with configurable pricing
 - **Budget alerts** — monthly budget with 80% warning and 100% exceeded thresholds
