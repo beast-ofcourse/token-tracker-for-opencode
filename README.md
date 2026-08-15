@@ -11,7 +11,7 @@ A local, read-only dashboard and CLI that tracks OpenCode's token usage, cost, a
 
 | Dark | White | Brutalist Maximalist |
 |------|-------|----------------------|
-| ![Dark theme dashboard](assets/dark-theme.png) | ![White theme dashboard](assets/White-theme.png) | ![Brutalist maximalist theme dashboard](assets/brutalist-theme.png) |
+| ![Dark theme dashboard](assets/dark-theme.png) | ![White theme dashboard](assets/White-theme.png) | ![Brutalist maximalist theme dashboard](assets/Brutalist-theme.png) |
 
 ## Why this exists
 
